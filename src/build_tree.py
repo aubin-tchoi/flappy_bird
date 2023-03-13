@@ -29,14 +29,13 @@ def predict_trajectory_success_rate(
 
 def print_outcomes_stats(outcomes: np.ndarray) -> None:
     print(
-        f"\nNumber of favorable outcomes: {outcomes.sum()} / {outcomes.shape[0]} ({outcomes.mean() * 100:.2f}%)"
-    )
-    print("The two probabilities below are conditional to the current state.")
-    print(
-        f"- Probability of losing when standing still: {predict_trajectory_success_rate(outcomes, 0):.2f}"
+        f"\nNumber of favorable outcomes:  {outcomes.sum():>5} / {outcomes.shape[0]:<5} ({outcomes.mean() * 100:.2f}%)"
     )
     print(
-        f"- Probability of losing when jumping: {predict_trajectory_success_rate(outcomes, 1):.2f}\n"
+        f"- Probability of winning when standing still: {predict_trajectory_success_rate(outcomes, 0) * 100:.2f}%"
+    )
+    print(
+        f"- Probability of winning when jumping:        {predict_trajectory_success_rate(outcomes, 1) * 100:.2f}%\n"
     )
 
 
@@ -115,17 +114,22 @@ def update_tree(
     observation: FlappyObs,
     tree_builder: TreeBuilder,
     outcomes: np.ndarray,
+    verbose: bool = False,
 ) -> np.ndarray:
     # TODO: add x, y, vy to the nodes of the tree in order to prevent re-computing the whole tree.
     # removing bars the bird successfully jumped over
     for x_left, x_right, height, pos in tree_builder.bars:
         if x_right < observation[0][0]:
+            if verbose:
+                print("Removing a bar")
             tree_builder.bars.pop(0)
             break  # you cannot jump over more than one bar at once
 
     if len((new_bars := observation[1][: tree_builder.max_bars])) != len(
         tree_builder.bars
     ):
+        if verbose:
+            print("Rebuilding the tree")
         tree_builder.bars = new_bars
         return tree_builder.build_tree(*observation[0])
     else:
