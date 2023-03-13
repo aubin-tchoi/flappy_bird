@@ -73,7 +73,13 @@ class TreeBuilder:
         depth: int = 0,
         verbose: bool = False,
     ) -> np.ndarray:
-        tree_depth = ceil(round((self.bars[-1][1] - bird_x) / (self.vx + 1e-5), 4))
+        tree_depth = ceil(
+            round(
+                (max(x_right for _, x_right, __, ___ in self.bars) - bird_x)
+                / (self.vx + 1e-5),
+                4,
+            )
+        )
         if verbose:
             print(
                 f"\ndepth - {depth:>2}: coordinates ({bird_x:.2f}, {bird_y:.2f}), speed {bird_vy:+.2f}"
