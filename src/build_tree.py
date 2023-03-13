@@ -59,9 +59,9 @@ class TreeBuilder:
             return True
         for x_left, x_right, height, pos in self.bars:
             if x_left <= bird_x <= x_right:
-                if pos and bird_y >= height:
+                if not pos and bird_y <= height:
                     return True
-                elif not pos and bird_y <= 1 - height:
+                elif pos and bird_y >= 1 - height:
                     return True
         return False
 
