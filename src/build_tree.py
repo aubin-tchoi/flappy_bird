@@ -72,7 +72,7 @@ class TreeBuilder:
         bird_y: float,
         bird_vy: float,
     ) -> np.ndarray:
-        tree_depth = ceil((self.bars[-1][1] - bird_x) / (self.vx + 1e-5))
+        tree_depth = ceil(round((self.bars[-1][1] - bird_x) / (self.vx + 1e-5), 4))
 
         if tree_depth == 0:
             self.n_steps_computed += 1
@@ -96,3 +96,29 @@ class TreeBuilder:
         )
 
         return outcomes
+
+
+def update_tree(
+    action: bool | int,
+    observation: FlappyObs,
+    tree_builder: TreeBuilder,
+    outcomes: np.ndarray,
+) -> np.ndarray:
+    # TODO: add x, y, vy to the nodes of the tree in order to prevent re-computing the whole tree.
+    # removing bars the bird successfully jumped over
+    for x_left, x_right, height, pos in tree_builder.bars:
+        if x_right < observation[0][0]:
+            tree_builder.bars.pop(0)
+            break  # you cannot jump over more than one bar at once
+
+    if len((new_bars := observation[1][: tree_builder.max_bars])) != len(
+        tree_builder.bars
+    ):
+        tree_builder.bars = new_bars
+        return tree_builder.build_tree(*observation[0])
+    else:
+        return outcomes[int(action) :: 2]
+
+
+def get_best_action(outcomes: np.ndarray) -> int:
+    return int(outcomes[1::2].sum() > outcomes[0::2].sum())
