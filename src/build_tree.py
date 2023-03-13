@@ -73,12 +73,15 @@ class TreeBuilder:
         depth: int = 0,
         verbose: bool = False,
     ) -> np.ndarray:
-        tree_depth = ceil(
-            round(
-                (max(x_right for _, x_right, __, ___ in self.bars) - bird_x)
-                / (self.vx + 1e-5),
-                4,
-            )
+        tree_depth = max(
+            ceil(
+                round(
+                    (max(x_right for _, x_right, __, ___ in self.bars) - bird_x)
+                    / (self.vx + 1e-5),
+                    4,
+                )
+            ),
+            0,
         )
         if verbose:
             print(
