@@ -1,11 +1,12 @@
 import numpy as np
 from deep_rl.environments.flappy_bird import FlappyBird
+import matplotlib.pyplot as plt
+import seaborn as sns
 
 from src import (
     infer_parameters,
     TreeBuilder,
     get_best_action,
-    update_tree,
     print_outcomes_stats,
     checkpoint,
 )
@@ -40,18 +41,41 @@ if __name__ == "__main__":
     )
     print_outcomes_stats(outcomes)
 
-    step, total_reward = 0, 0
-    while True:
-        action = get_best_action(outcomes)
-        observation, reward, done = env.step(action)
-        print(f"action: {action}, reward: {reward}, observation: {str(observation)}")
+    # experiments
+    max_steps = 1000
+    n_experiments = 100
 
-        step += 1
-        total_reward += reward
+    rewards = np.zeros(n_experiments)
+    n_steps = np.zeros(n_experiments)
 
-        print(f"Cumulated reward at step {step}: {total_reward:>3}.")
-        if done:
-            print(f"Simulation ended after {step} steps.")
-            break
-        outcomes = update_tree(action, observation, tree_builder, outcomes)
-        print_outcomes_stats(outcomes)
+    for i in range(n_experiments):
+        step, total_reward = 0, 0
+        for __ in range(max_steps):
+
+            action = get_best_action(outcomes)
+            observation, reward, done = env.step(action)
+            print(
+                f"action: {action}, reward: {reward}, observation: {str(observation)}"
+            )
+
+            step += 1
+            total_reward += reward
+
+            print(f"Cumulated reward at step {step}: {total_reward:>3}.")
+            if done:
+                print(f"Simulation ended after {step} steps.")
+                break
+            tree_builder = TreeBuilder(observation[1], gravity, force_push, vx)
+            outcomes = tree_builder.build_tree(*observation[0])
+            print_outcomes_stats(outcomes)
+        rewards[i] = total_reward
+        n_steps[i] = step
+
+    print(
+        f"\n\nReward over {n_experiments} experiments: {rewards.mean():.2f} +/- {1.96 * rewards.std():.2f}"
+    )
+    print(f"Number of steps: {n_steps.mean():.2f} +/- {1.96 * n_steps.std():.2f}")
+
+    sns.set_theme()
+    plt.hist(rewards, bins=int(rewards.max()))
+    plt.show()
