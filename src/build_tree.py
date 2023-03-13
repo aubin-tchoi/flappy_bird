@@ -24,12 +24,12 @@ def predict_trajectory_success_rate(
         # taking the even indices if decision == 0 and the odd indices otherwise
         tree_portion = tree_portion[int(decision) :: 2]
 
-    return tree_portion.sum() / outcomes.sum() if outcomes.any() else 0
+    return tree_portion.sum() / outcomes.shape[0]
 
 
 def print_outcomes_stats(outcomes: np.ndarray) -> None:
     print(
-        f"Number of favorable outcomes: {outcomes.sum()} / {outcomes.shape[0]} ({outcomes.mean() * 100:.2f}%)"
+        f"\nNumber of favorable outcomes: {outcomes.sum()} / {outcomes.shape[0]} ({outcomes.mean() * 100:.2f}%)"
     )
     print("The two probabilities below are conditional to the current state.")
     print(
@@ -71,14 +71,22 @@ class TreeBuilder:
         bird_x: float,
         bird_y: float,
         bird_vy: float,
+        depth: int = 0,
+        verbose: bool = False,
     ) -> np.ndarray:
         tree_depth = ceil(round((self.bars[-1][1] - bird_x) / (self.vx + 1e-5), 4))
+        if verbose:
+            print(
+                f"\ndepth - {depth:>2}: coordinates ({bird_x:.2f}, {bird_y:.2f}), speed {bird_vy:+.2f}"
+            )
 
         if tree_depth == 0:
             self.n_steps_computed += 1
             return np.ones(1, dtype=bool) * self.is_bird_not_crashing(bird_x, bird_y)
 
         if not self.is_bird_not_crashing(bird_x, bird_y):
+            if verbose:
+                print("Dead branch")
             self.n_steps_saved += 2**tree_depth
             return np.zeros(2**tree_depth, dtype=bool)
 
@@ -86,13 +94,17 @@ class TreeBuilder:
         outcomes = np.ones(2**tree_depth, dtype=bool)
         # the even indices correspond to standing still
         outcomes[::2] = self.build_tree(
-            bird_x + self.vx, bird_y - bird_vy, bird_vy - self.gravity
+            bird_x + self.vx,
+            bird_y + bird_vy - self.gravity,
+            bird_vy - self.gravity,
+            depth + 1,
         )
         # the odd indices correspond to jumping
         outcomes[1::2] = self.build_tree(
             bird_x + self.vx,
-            bird_y - bird_vy + self.force_push,
+            bird_y + bird_vy - self.gravity + self.force_push,
             bird_vy - self.gravity + self.force_push,
+            depth + 1,
         )
 
         return outcomes
