@@ -24,7 +24,20 @@ def predict_trajectory_success_rate(
         # taking the even indices if decision == 0 and the odd indices otherwise
         tree_portion = tree_portion[int(decision) :: 2]
 
-    return tree_portion.sum() / outcomes.sum()
+    return tree_portion.sum() / outcomes.sum() if outcomes.any() else 0
+
+
+def print_outcomes_stats(outcomes: np.ndarray) -> None:
+    print(
+        f"Number of favorable outcomes: {outcomes.sum()} / {outcomes.shape[0]} ({outcomes.mean() * 100:.2f}%)"
+    )
+    print("The two probabilities below are conditional to the current state.")
+    print(
+        f"- Probability of losing when standing still: {predict_trajectory_success_rate(outcomes, 0):.2f}"
+    )
+    print(
+        f"- Probability of losing when jumping: {predict_trajectory_success_rate(outcomes, 1):.2f}\n"
+    )
 
 
 @dataclass
@@ -33,15 +46,16 @@ class TreeBuilder:
     gravity: float
     force_push: float
     vx: float
+    # TODO: maybe replace max_bars by a max distance (== max tree depth)
     max_bars: int = 4
-    count: int = 0
+    n_steps_computed: int = 0
+    n_steps_saved: int = 0
 
     def __post_init__(self):
         if len(self.bars) > self.max_bars:
             self.bars = self.bars[: self.max_bars]
 
     def is_bird_not_crashing(self, bird_x: float, bird_y: float) -> bool:
-        # TODO: vectorize this function
         if bird_y <= 0 or bird_y >= 1:
             return False
         for x_left, x_right, height, pos in self.bars:
@@ -61,10 +75,11 @@ class TreeBuilder:
         tree_depth = ceil((self.bars[-1][1] - bird_x) / (self.vx + 1e-5))
 
         if tree_depth == 0:
-            self.count += 1
+            self.n_steps_computed += 1
             return np.ones(1, dtype=bool) * self.is_bird_not_crashing(bird_x, bird_y)
 
         if not self.is_bird_not_crashing(bird_x, bird_y):
+            self.n_steps_saved += 2**tree_depth
             return np.zeros(2**tree_depth, dtype=bool)
 
         # TODO: in the environment the bars move instead of the bird, this will cause an issue in the update
