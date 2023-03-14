@@ -40,14 +40,14 @@ class TreeBuilder:
 
     def __post_init__(self):
         self.bars = sorted(
-            # filtering the bars that were not already passed
-            filter(
-                lambda bar: bar[1] >= self.base_x,
-                # the bars have to be shifted to the left by one step
-                map(
-                    lambda bar: cast(
-                        Bar, [bar[0] - self.vx, bar[1] - self.vx, bar[2], bar[3]]
-                    ),
+            # the bars have to be shifted to the left by one step
+            map(
+                lambda bar: cast(
+                    Bar, [bar[0] - self.vx, bar[1] - self.vx, bar[2], bar[3]]
+                ),
+                # filtering the bars that were not already passed
+                filter(
+                    lambda bar: bar[1] >= self.base_x,
                     self.bars,
                 ),
             ),
@@ -60,9 +60,9 @@ class TreeBuilder:
             return True
         for x_left, x_right, height, pos in self.bars:
             if x_left <= bird_x <= x_right:
-                if pos and bird_y <= height:
+                if pos and bird_y <= height - 1e-4:
                     return True
-                elif not pos and bird_y >= 1 - height:
+                elif not pos and bird_y >= 1 - height + 1e-4:
                     return True
         return False
 
