@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from math import ceil, log
-from typing import List
+from typing import List, cast
 
 import numpy as np
 
@@ -35,11 +35,25 @@ class TreeBuilder:
     max_bars: int = 4
     n_steps_computed: int = 0
     n_steps_saved: int = 0
+    # initial x position of the bird (it actually stays the same as only the bars move to avoid eventual overflow)
+    base_x: float = 0.5
 
     def __post_init__(self):
-        # TODO: filter unused bars to prevent storing bars that are already behind the bird
-        if len(self.bars) > self.max_bars:
-            self.bars = self.bars[: self.max_bars]
+        self.bars = sorted(
+            # filtering the bars that were not already passed
+            filter(
+                lambda bar: bar[1] >= self.base_x,
+                # the bars have to be shifted to the left by one step
+                map(
+                    lambda bar: cast(
+                        Bar, [bar[0] - self.vx, bar[1] - self.vx, bar[2], bar[3]]
+                    ),
+                    self.bars,
+                ),
+            ),
+            key=lambda bar: bar[0],
+            # taking the first max_bars bars
+        )[: self.max_bars]
 
     def is_bird_crashing(self, bird_x: float, bird_y: float) -> bool:
         if bird_y <= 0 or bird_y >= 1:
