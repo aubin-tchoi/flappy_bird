@@ -1,12 +1,10 @@
 from dataclasses import dataclass
 from math import ceil, log
-from typing import Tuple, List
+from typing import List
 
 import numpy as np
 
-BarObs = Tuple[float, float, float, bool]
-BirdObs = Tuple[float, float, float]
-FlappyObs = Tuple[BirdObs, List[BarObs]]
+from .typing import Bar, Observation
 
 
 def predict_trajectory_outcome(decisions: List[bool], outcomes: np.ndarray) -> bool:
@@ -41,7 +39,7 @@ def print_outcomes_stats(outcomes: np.ndarray) -> None:
 
 @dataclass
 class TreeBuilder:
-    bars: List[BarObs]
+    bars: List[Bar]
     gravity: float
     force_push: float
     vx: float
@@ -120,7 +118,7 @@ class TreeBuilder:
 
 def update_tree(
     action: bool | int,
-    observation: FlappyObs,
+    observation: Observation,
     tree_builder: TreeBuilder,
     outcomes: np.ndarray,
     verbose: bool = False,
