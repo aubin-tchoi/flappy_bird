@@ -7,5 +7,10 @@ from .build_tree import (
 )
 from .parameters_inference import infer_parameters
 from .perf_monitoring import checkpoint
-from .utils import repr_obs, print_outcomes_stats, print_successful_trajectories
+from .utils import (
+    repr_obs,
+    print_outcomes_stats,
+    print_successful_decisions,
+    print_successful_trajectories,
+)
 from .typing import Observation, Bar, Bird
