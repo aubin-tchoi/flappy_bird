@@ -25,18 +25,6 @@ def predict_trajectory_success_rate(
     return tree_portion.sum() / outcomes.shape[0]
 
 
-def print_outcomes_stats(outcomes: np.ndarray) -> None:
-    print(
-        f"\nNumber of favorable outcomes:  {outcomes.sum():>5} / {outcomes.shape[0]:<5} ({outcomes.mean() * 100:.2f}%)"
-    )
-    print(
-        f"- Probability of winning when standing still: {predict_trajectory_success_rate(outcomes, 0) * 100:.2f}%"
-    )
-    print(
-        f"- Probability of winning when jumping:        {predict_trajectory_success_rate(outcomes, 1) * 100:.2f}%\n"
-    )
-
-
 @dataclass
 class TreeBuilder:
     bars: List[Bar]
@@ -57,9 +45,9 @@ class TreeBuilder:
             return True
         for x_left, x_right, height, pos in self.bars:
             if x_left <= bird_x <= x_right:
-                if not pos and bird_y <= height:
+                if pos and bird_y <= height:
                     return True
-                elif pos and bird_y >= 1 - height:
+                elif not pos and bird_y >= 1 - height:
                     return True
         return False
 

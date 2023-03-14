@@ -4,9 +4,8 @@ from .build_tree import (
     predict_trajectory_outcome,
     get_best_action,
     update_tree,
-    print_outcomes_stats,
 )
 from .parameters_inference import infer_parameters
 from .perf_monitoring import checkpoint
-from .utils import repr_obs
+from .utils import repr_obs, print_outcomes_stats, print_successful_trajectories
 from .typing import Observation, Bar, Bird
