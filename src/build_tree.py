@@ -37,6 +37,7 @@ class TreeBuilder:
     n_steps_saved: int = 0
 
     def __post_init__(self):
+        # TODO: filter unused bars to prevent storing bars that are already behind the bird
         if len(self.bars) > self.max_bars:
             self.bars = self.bars[: self.max_bars]
 
