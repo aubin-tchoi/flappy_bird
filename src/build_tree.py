@@ -60,15 +60,21 @@ class TreeBuilder:
         depth: int = 0,
         verbose: bool = False,
     ) -> np.ndarray:
-        tree_depth = max(
-            ceil(
-                round(
-                    (max(x_right for _, x_right, __, ___ in self.bars) - bird_x)
-                    / (self.vx + 1e-5),
-                    4,
-                )
-            ),
-            0,
+        # possible edge case: there is no bar.
+        # temporary fix: fix a big size (can be the max distance) in order to encourage the bird to recenter itself
+        tree_depth = (
+            max(
+                ceil(
+                    round(
+                        (max(x_right for _, x_right, __, ___ in self.bars) - bird_x)
+                        / (self.vx + 1e-5),
+                        4,
+                    )
+                ),
+                0,
+            )
+            if self.bars
+            else 10 - depth
         )
         if verbose:
             print(
