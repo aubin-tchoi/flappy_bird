@@ -9,6 +9,7 @@ from .parameters_inference import infer_parameters
 from .perf_monitoring import checkpoint
 from .utils import (
     repr_obs,
+    repr_bars,
     print_outcomes_stats,
     print_successful_decisions,
     print_successful_trajectories,
