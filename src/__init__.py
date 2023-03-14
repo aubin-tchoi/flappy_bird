@@ -8,3 +8,5 @@ from .build_tree import (
 )
 from .parameters_inference import infer_parameters
 from .perf_monitoring import checkpoint
+from .utils import repr_obs
+from .typing import Observation, Bar, Bird
