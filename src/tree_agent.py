@@ -153,6 +153,7 @@ class TreeBasedAgent:
 
         return outcomes
 
+    @multimethod
     def predict(
         self,
         bird_x: float,
@@ -164,6 +165,18 @@ class TreeBasedAgent:
         Builds the tree / compute the outcomes.
         """
         self.outcomes = self._build_tree(bird_x, bird_y, bird_vy, verbose)
+
+    @multimethod
+    def predict(
+        self,
+        observation: Observation,
+        verbose: bool = False,
+    ) -> None:
+        """
+        Builds the tree / compute the outcomes.
+        """
+        self._process_bars(observation[1])
+        self.outcomes = self._build_tree(*observation[0], verbose)
 
     def update(
         self,
@@ -205,8 +218,7 @@ class TreeBasedAgent:
         """
         Returns the best action according to a given observation. Recomputes the tree entirely.
         """
-        self._process_bars(observation[1])
-        self.predict(*observation[0])
+        self.predict(observation)
         return int(self.outcomes[1::2].sum() > self.outcomes[0::2].sum())
 
     @_requires_outcomes
