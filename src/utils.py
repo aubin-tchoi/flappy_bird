@@ -5,7 +5,7 @@ from .typing import Observation, Bar
 
 def repr_bars(bars: List[Bar]) -> str:
     return "\n - " + "\n - ".join(
-        f"({bar[0]:.2f}, {bar[1]:.2f}, {bar[2]:.2f}, {'TOP' if bar[3] else 'BOTTOM'})"
+        f"({bar[0]:.2f}, {bar[1]:.2f}, {bar[2]:.2f}, {'BOTTOM' if bar[3] else 'TOP'})"
         for bar in bars
     )
 

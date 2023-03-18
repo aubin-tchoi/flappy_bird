@@ -83,10 +83,12 @@ class TreeBasedAgent:
         if bird_y <= 0 or bird_y >= 1:
             return True
         for x_left, x_right, height, pos in self.bars:
-            if x_left <= bird_x <= x_right:
-                if pos and bird_y <= height - 1e-4:
+            # it seems that when the environment compares bird_x to the left and right abscissas of the bar,
+            # the bird first goes forward and then goes up or down.
+            if x_left <= bird_x - self.vx <= x_right + self.vx:
+                if pos and bird_y <= height:
                     return True
-                elif not pos and bird_y >= 1 - height + 1e-4:
+                if not pos and bird_y >= 1 - height:
                     return True
         return False
 
@@ -100,6 +102,7 @@ class TreeBasedAgent:
     ) -> np.ndarray:
         """
         Recursive function to build the binary tree.
+        TODO: track memory consumption and execution time more closely.
         """
         # possible edge case: there is no bar.
         # temporary fix: fix a big size (can be the max distance) in order to encourage the bird to recenter itself
@@ -214,11 +217,11 @@ class TreeBasedAgent:
         return int(self.outcomes[1::2].sum() > self.outcomes[0::2].sum())
 
     @multimethod
-    def act(self, observation: Observation) -> int:
+    def act(self, observation: Observation, verbose: bool = False) -> int:
         """
         Returns the best action according to a given observation. Recomputes the tree entirely.
         """
-        self.predict(observation)
+        self.predict(observation, verbose)
         return int(self.outcomes[1::2].sum() > self.outcomes[0::2].sum())
 
     @_requires_outcomes
