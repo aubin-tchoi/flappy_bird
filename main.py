@@ -1,15 +1,9 @@
-import numpy as np
-from deep_rl.environments.flappy_bird import FlappyBird
 import matplotlib.pyplot as plt
+import numpy as np
 import seaborn as sns
+from deep_rl.environments.flappy_bird import FlappyBird
 
-from src import (
-    infer_parameters,
-    TreeBuilder,
-    get_best_action,
-    print_outcomes_stats,
-    checkpoint,
-)
+from src import infer_parameters, TreeBasedAgent, checkpoint
 
 if __name__ == "__main__":
     params = {"gravity": 0.05, "force_push": 0.1, "vx": 0.05}
@@ -32,14 +26,14 @@ if __name__ == "__main__":
 
     # tree building
     env.reset()
-    (bird_x, bird_y, bird_vy), bars = env.step(0)[0]
-    tree_builder = TreeBuilder(bars, gravity, force_push, vx)
-    outcomes = tree_builder.build_tree(bird_x, bird_y, bird_vy)
+    observation = env.step(0)[0]
+    agent = TreeBasedAgent(gravity, force_push, vx, observation[1])
+    agent.predict(*observation[0])
     print(
-        f"\nNumber of leaves computed: {tree_builder.n_steps_computed}\n"
-        f"Number of leave computation steps saved: {tree_builder.n_steps_saved}\n"
+        f"\nNumber of leaves computed: {agent.n_steps_computed}\n"
+        f"Number of leave computation steps saved: {agent.n_steps_saved}\n"
     )
-    print_outcomes_stats(outcomes)
+    agent.print_outcomes_stats()
 
     # experiments
     max_steps = 1000
@@ -52,7 +46,7 @@ if __name__ == "__main__":
         step, total_reward = 0, 0
         for __ in range(max_steps):
 
-            action = get_best_action(outcomes)
+            action = agent.act(observation)
             observation, reward, done = env.step(action)
             print(
                 f"action: {action}, reward: {reward}, observation: {str(observation)}"
@@ -65,9 +59,7 @@ if __name__ == "__main__":
             if done:
                 print(f"Simulation ended after {step} steps.")
                 break
-            tree_builder = TreeBuilder(observation[1], gravity, force_push, vx)
-            outcomes = tree_builder.build_tree(*observation[0])
-            print_outcomes_stats(outcomes)
+            agent.print_outcomes_stats()
         rewards[i] = total_reward
         n_steps[i] = step
 
