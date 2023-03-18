@@ -14,6 +14,7 @@ numpy = "^1.24.2"
 deep_rl = "==1.0"
 matplotlib = "^3.7.1"
 seaborn = "^0.12.2"
+multimethod = "^1.9.1"
 
 
 [build-system]

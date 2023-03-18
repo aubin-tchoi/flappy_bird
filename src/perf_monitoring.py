@@ -1,9 +1,9 @@
 from functools import wraps
 from time import perf_counter
-from typing import Callable
+from typing import Callable, Any
 
 
-def timeit(func: Callable) -> Callable:
+def timeit(func: Callable[..., Any]) -> Callable[..., Any]:
     """
     Decorator for timing function execution time.
 
@@ -14,7 +14,7 @@ def timeit(func: Callable) -> Callable:
     """
 
     @wraps(func)
-    def timeit_wrapper(*args, **kwargs):
+    def timeit_wrapper(*args: Any, **kwargs: Any):
         start_time = perf_counter()
         result = func(*args, **kwargs)
         end_time = perf_counter()
@@ -25,12 +25,12 @@ def timeit(func: Callable) -> Callable:
     return timeit_wrapper
 
 
-def runtime_alert(time_limit: int) -> Callable[[], Callable]:
+def runtime_alert(time_limit: int) -> Callable[..., Callable]:
     """
     Decorator with argument.
     """
 
-    def inner_func(func: Callable) -> Callable:
+    def inner_func(func: Callable[..., Any]) -> Callable[..., Any]:
         """
         Decorator that triggers and alert if the runtime of the function exceeds a time limit.
 
