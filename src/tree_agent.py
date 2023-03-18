@@ -244,24 +244,6 @@ class TreeBasedAgent:
             f"- Probability of winning when jumping:        {self.predict_trajectory_success_rate(1) * 100:.2f}%\n"
         )
 
-    def print_successful_decisions(outcomes: np.ndarray, max_lines: int = 10) -> None:
-        successful_trajectories = outcomes.nonzero()[0]
-        indices = np.random.choice(
-            successful_trajectories, min(max_lines, successful_trajectories.shape[0])
-        )
-        print("\nA few successful trajectories:\n -- ", end="")
-        print(
-            "\n -- ".join(
-                " - ".join(
-                    "JUMP" if decision else "FALL"
-                    for decision in index_to_decisions(
-                        index, int(np.log2(outcomes.shape[0]))
-                    )
-                )
-                for index in indices
-            )
-        )
-
     @_requires_outcomes
     def print_successful_decisions(self, max_lines: int = 10) -> None:
         successful_trajectories = self.outcomes.nonzero()[0]
