@@ -15,6 +15,7 @@ deep_rl = "==1.0"
 matplotlib = "^3.7.1"
 seaborn = "^0.12.2"
 multimethod = "^1.9.1"
+tqdm = "^4.65.0"
 
 
 [build-system]
