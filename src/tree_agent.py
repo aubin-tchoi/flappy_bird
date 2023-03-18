@@ -38,6 +38,7 @@ class TreeBasedAgent:
         """
         Processes bars by filtering inactive bars, shifting them, sorting them, and keeping only a number of them.
         """
+        # TODO: check if we can remove the sorting operation to improve performances
         self.bars = sorted(
             # the bars have to be shifted to the left by one step
             map(
