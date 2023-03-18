@@ -1,17 +1,5 @@
-from .build_tree import (
-    TreeBuilder,
-    predict_trajectory_success_rate,
-    predict_trajectory_outcome,
-    get_best_action,
-    update_tree,
-)
 from .parameters_inference import infer_parameters
 from .perf_monitoring import checkpoint
-from .utils import (
-    repr_obs,
-    repr_bars,
-    print_outcomes_stats,
-    print_successful_decisions,
-    print_successful_trajectories,
-)
+from .tree_agent import TreeBasedAgent
 from .typing import Observation, Bar, Bird
+from .utils import repr_obs, repr_bars
