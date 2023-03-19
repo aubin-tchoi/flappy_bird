@@ -222,6 +222,8 @@ class TreeBasedAgent:
         """
         Returns the best action according to a given observation. Recomputes the tree entirely.
         """
+        # TODO: implement a heuristic in case of equality (triggered when there is no possible trajectory)
+        # one possible heuristic would consist in lowering the depth of the tree to get maybe one more point
         self.predict(observation, verbose)
         return int(self.outcomes[1::2].sum() > self.outcomes[0::2].sum())
 
