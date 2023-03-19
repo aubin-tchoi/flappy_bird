@@ -14,46 +14,64 @@ from .utils import index_to_decisions
 class TreeBasedAgent:
     """
     Agent that takes decision based on the computation of a binary tree modelling all possible sequences of decisions.
+    If max_bars is set to -1, the agent will always consider all the bars available in the observation
     """
+    # for some reason my IDE only reads the docstrings if I put them below the attribute.
 
     # parameters of the environment
     gravity: float = 0.05
+    """Gravity. A positive value is expected, it is counted negatively when updating the speed."""
     force_push: float = 0.1
+    """Value that describes the speed gained vertically by the bird when being pushed."""
     vx: float = 0.05
+    """Horizontal speed."""
 
     bars: List[Bar] | None = None
+    """Positions of the bars to dodge, in the same format as in the observations."""
     outcomes: np.ndarray | None = None
+    """Leaves of the binary tree of the predicted outcomes for each possible sequence of decision (array of bool)."""
 
-    # TODO: maybe replace max_bars by a max distance (== max tree depth)
+    # TODO: maybe replace max_bars by a max distance (== max tree depth) if the RAM consumption is too high
     max_bars: int = 4
+    """Maximum number of bars considered by the agent (a value of -1 means that all the bars are considered)."""
 
-    # number of leaves computed or whose computation was prevented by an internal optimization
     n_steps_computed: int = 0
+    """Number of leaves computed."""
     n_steps_saved: int = 0
+    """Number of leaves whose computation was prevented by an internal optimization"""
 
-    # initial x position of the bird (it actually stays the same as only the bars move to avoid eventual overflow)
     base_x: float = 0.5
+    """Initial x position of the bird (it actually stays the same as only the bars move to avoid eventual overflow)."""
 
     def _process_bars(self, bars: List[Bar]) -> None:
         """
         Processes bars by filtering inactive bars, shifting them, sorting them, and keeping only a number of them.
         """
-        # TODO: check if we can remove the sorting operation to improve performances
-        self.bars = sorted(
-            # the bars have to be shifted to the left by one step
-            map(
-                lambda bar: cast(
-                    Bar, [bar[0] - self.vx, bar[1] - self.vx, bar[2], bar[3]]
-                ),
-                # filtering the bars that were not already passed
-                filter(
+        if self.max_bars == -1:
+            # taking all the bars, no sorting required
+            self.bars = [
+                cast(Bar, [bar[0] - self.vx, bar[1] - self.vx, bar[2], bar[3]])
+                for bar in filter(
                     lambda bar: bar[1] >= self.base_x,
                     bars,
+                )
+            ]
+        else:
+            self.bars = sorted(
+                # the bars have to be shifted to the left by one step
+                map(
+                    lambda bar: cast(
+                        Bar, [bar[0] - self.vx, bar[1] - self.vx, bar[2], bar[3]]
+                    ),
+                    # filtering the bars that were not already passed
+                    filter(
+                        lambda bar: bar[1] >= self.base_x,
+                        bars,
+                    ),
                 ),
-            ),
-            key=lambda bar: bar[0],
-            # taking the first max_bars bars
-        )[: self.max_bars]
+                key=lambda bar: bar[0],
+                # taking the first max_bars bars
+            )[: self.max_bars]
 
     @staticmethod
     def _requires_outcomes(func: Callable[..., Any]) -> Callable[..., Any]:
