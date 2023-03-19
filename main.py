@@ -88,19 +88,20 @@ if __name__ == "__main__":
                 print(f"Cumulated reward at step {step}: {total_reward:>3}.")
                 agent.print_outcomes_stats()
             if done:
-                print(f"Simulation ended after {step} steps for a total reward of {total_reward}.")
+                print(f"  Simulation ended after {step} steps for a total reward of {total_reward}.")
                 break
         rewards[i] = total_reward
         n_steps[i] = step
 
     print(
         f"\n\nReward over {args.n_experiments} experiments: {rewards.mean():.2f} +/- {1.96 * rewards.std():.2f} "
-        f"[{rewards.min()}, {rewards.max()}]"
+        f"[{rewards.min(initial=0)}, {rewards.max(initial=0)}]"
     )
     print(
-        f"Number of steps: {n_steps.mean():.2f} +/- {1.96 * n_steps.std():.2f} [{n_steps.min()}, {n_steps.max()}]"
+        f"Number of steps: {n_steps.mean():.2f} +/- {1.96 * n_steps.std():.2f} "
+        f"[{n_steps.min(initial=0)}, {n_steps.max(initial=0)}]"
     )
 
     sns.set_theme()
-    plt.hist(rewards, bins=int(rewards.max()))
+    plt.hist(rewards, bins=int(rewards.max(initial=0)))
     plt.show()
