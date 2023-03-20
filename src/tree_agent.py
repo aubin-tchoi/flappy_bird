@@ -16,6 +16,7 @@ class TreeBasedAgent:
     Agent that takes decision based on the computation of a binary tree modelling all possible sequences of decisions.
     If max_bars is set to -1, the agent will always consider all the bars available in the observation
     """
+
     # for some reason my IDE only reads the docstrings if I put them below the attribute.
 
     # parameters of the environment
@@ -26,13 +27,18 @@ class TreeBasedAgent:
     vx: float = 0.05
     """Horizontal speed."""
 
+    alpha: float = 0.0
+    """Strength of the regularization towards y close to 0.5 and vy close to 0."""
+    beta: float = 0.3
+    """Factor between 0 and 1 that balances between the two regularizing factors (y close to 0.5 and vy close to 0)."""
+
     bars: List[Bar] | None = None
     """Positions of the bars to dodge, in the same format as in the observations."""
     outcomes: np.ndarray | None = None
     """Leaves of the binary tree of the predicted outcomes for each possible sequence of decision (array of bool)."""
 
     # TODO: maybe replace max_bars by a max distance (== max tree depth) if the RAM consumption is too high
-    max_bars: int = 4
+    max_bars: int = -1
     """Maximum number of bars considered by the agent (a value of -1 means that all the bars are considered)."""
 
     n_steps_computed: int = 0
@@ -92,6 +98,7 @@ class TreeBasedAgent:
         """
         Processes the bars passed if any.
         """
+        assert 0.0 <= self.beta <= 1.0, "beta should be between 0. and 1."
         if self.bars is not None:
             self._process_bars(self.bars)
 
@@ -146,16 +153,26 @@ class TreeBasedAgent:
 
         if tree_depth == 0:
             self.n_steps_computed += 1
-            return np.ones(1, dtype=bool) * (not self._is_bird_crashing(bird_x, bird_y))
+            return (
+                np.ones(1, dtype=float)
+                * (not self._is_bird_crashing(bird_x, bird_y))
+                * (
+                    1
+                    - self.alpha
+                    * np.sqrt(
+                        self.beta * (bird_y - 0.5) ** 2 + (1 - self.beta) * bird_vy**2
+                    )
+                )
+            )
 
         if self._is_bird_crashing(bird_x, bird_y):
             if verbose:
                 print("Dead branch")
             self.n_steps_saved += 2**tree_depth
-            return np.zeros(2**tree_depth, dtype=bool)
+            return np.zeros(2**tree_depth, dtype=float)
 
         # TODO: in the environment the bars move instead of the bird, this will cause an issue in the update
-        outcomes = np.ones(2**tree_depth, dtype=bool)
+        outcomes = np.ones(2**tree_depth, dtype=float)
         # the even indices correspond to standing still
         outcomes[::2] = self._build_tree(
             bird_x + self.vx,
