@@ -1,5 +1,5 @@
 import argparse
-from multiprocessing import Process, Queue
+from multiprocessing import Pool
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -116,33 +116,29 @@ def launch_multiple_experiments(
     plt.show()
 
 
-def mp_single_experiment(
-    receiving_queue: Queue,
-    agent: TreeBasedAgent,
+def parallel_experiment(
     environment: FlappyBird,
+    agent: TreeBasedAgent,
+    n_experiments: int,
     max_steps: int = 1000,
-) -> None:
+) -> np.ndarray:
     """
-    Launches a single experiment. Allows for multiprocessing.
+    Launches an experiment. Allows for easy multiprocessing as it is a pure function.
     """
-    step, total_reward = 0, 0
-    observation = environment.reset()
-    for step in range(1, max_steps + 1):
-        action = agent.act(observation)
-        observation, reward, done = environment.step(action)
-        total_reward += reward
-        if done:
-            break
+    n_steps = np.zeros(n_experiments)
 
-    receiving_queue.put(step)
+    for i in range(n_experiments):
+        step, total_reward = 0, 0
+        observation = environment.reset()
+        for step in range(1, max_steps + 1):
+            action = agent.act(observation)
+            observation, reward, done = environment.step(action)
+            total_reward += reward
+            if done:
+                break
+        n_steps[i] = step
 
-
-def collect_data(q: Queue) -> np.ndarray:
-    data = []
-    while not q.empty():
-        data.append(q.get())
-
-    return np.array(data)
+    return n_steps
 
 
 if __name__ == "__main__":
@@ -176,21 +172,21 @@ if __name__ == "__main__":
             alpha=args.alpha,
             beta=args.beta,
         )
+        timer("Time spent on experiment")
     else:
         alpha_values = [0.0, 0.5, 1.0, 2.0]
         beta_values = [0.0, 0.3, 0.5, 0.7, 1.0]
 
         results = np.zeros((len(alpha_values), len(beta_values), args.n_experiments))
-        for alpha_i, alpha_val in enumerate(alpha_values):
-            for beta_i, beta_val in enumerate(beta_values):
-                print(f"Parameters - alpha: {alpha_val}, beta: {beta_val}")
-                all_processes = []
-                queue = Queue()
-                for _ in range(args.n_experiments):
-                    process = Process(
-                        target=mp_single_experiment,
-                        args=(
-                            queue,
+        all_results = []
+        with Pool(processes=6) as pool:
+            for alpha_i, alpha_val in enumerate(alpha_values):
+                for beta_i, beta_val in enumerate(beta_values):
+                    # one big process for each (alpha, beta) instead of n_alpha x n_beta x args.n_experiments
+                    alpha_beta_result = pool.apply_async(
+                        parallel_experiment,
+                        (
+                            env,
                             TreeBasedAgent(
                                 gravity,
                                 force_push,
@@ -199,16 +195,19 @@ if __name__ == "__main__":
                                 alpha=alpha_val,
                                 beta=beta_val,
                             ),
-                            env,
+                            args.n_experiments,
                         ),
                     )
-                    all_processes.append(process)
-                    process.start()
-                for process in all_processes:
-                    process.join()
-                results[alpha_i, beta_i, :] = collect_data(queue)
+                    all_results.append((alpha_i, beta_i, alpha_beta_result))
+
+            for alpha_i, beta_i, res in all_results:
+                results[alpha_i, beta_i, :] = res.get(timeout=36000)
+
+        for alpha_i, alpha_val in enumerate(alpha_values):
+            for beta_i, beta_val in enumerate(beta_values):
                 print(
                     f"Number of steps: {results[alpha_i, beta_i, :].mean():.2f} "
                     f"+/- {1.96 * results[alpha_i, beta_i, :].std():.2f} "
                     f"[{results[alpha_i, beta_i, :].min():.2f}, {results[alpha_i, beta_i, :].max():.2f}]\n"
                 )
+        timer("Time spent on parameters tuning")
