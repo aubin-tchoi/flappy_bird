@@ -1,4 +1,5 @@
 import argparse
+from typing import List
 from multiprocessing import Pool
 
 import matplotlib.pyplot as plt
@@ -78,7 +79,7 @@ def launch_multiple_experiments(
     rewards = np.zeros(n_experiments)
     n_steps = np.zeros(n_experiments)
 
-    for i in trange(n_experiments):
+    for exp in trange(n_experiments):
         step, total_reward = 0, 0
         for step in trange(1, max_steps, desc="Step", disable=disable_progress_bar):
             action = agent.act(observation)
@@ -99,8 +100,8 @@ def launch_multiple_experiments(
                         f"  Simulation ended after {step} steps for a total reward of {total_reward}."
                     )
                 break
-        rewards[i] = total_reward
-        n_steps[i] = step
+        rewards[exp] = total_reward
+        n_steps[exp] = step
 
     print(
         f"\n\nReward over {n_experiments} experiments: {rewards.mean():.2f} +/- {1.96 * rewards.std():.2f} "
@@ -127,7 +128,7 @@ def parallel_experiment(
     """
     n_steps = np.zeros(n_experiments)
 
-    for i in range(n_experiments):
+    for exp in range(n_experiments):
         step, total_reward = 0, 0
         observation = environment.reset()
         for step in range(1, max_steps + 1):
@@ -136,9 +137,57 @@ def parallel_experiment(
             total_reward += reward
             if done:
                 break
-        n_steps[i] = step
+        n_steps[exp] = step
 
     return n_steps
+
+
+def display_results(
+    values: np.ndarray,
+    alpha_list: List[float],
+    beta_list: List[float],
+    max_steps: int,
+) -> None:
+    """
+    Displays the results obtained through the cross-validation experiment on alpha and beta.
+    Operates in three steps: prints the results obtained for each set of parameters, displays them in a matrix and
+    gives the best parameters.
+    """
+    mean_results = values.mean(axis=-1)
+    for alpha_idx, alpha in enumerate(alpha_list):
+        for beta_idx, beta in enumerate(beta_list):
+            print(
+                f"Parameters - alpha: {alpha}, beta: {beta}\n"
+                f"Number of steps: {mean_results[alpha_idx, beta_idx]:.2f} "
+                f"+/- {1.96 * values[alpha_idx, beta_idx, :].std():.2f} "
+                f"[{values[alpha_idx, beta_idx, :].min():.2f}, {values[alpha_idx, beta_idx, :].max():.2f}]\n"
+            )
+
+    # matrix plot
+    fig, ax = plt.subplots(figsize=(4 * len(alpha_list), 4 * len(beta_list)))
+    # noinspection PyUnresolvedReferences
+    ax.matshow(mean_results, cmap=plt.cm.Blues)
+    for row in range(mean_results.shape[1]):
+        for col in range(mean_results.shape[0]):
+            # not the same convention between numpy and matshow (column-major)
+            ax.text(row, col, f"{mean_results[col, row]:.2f}", va="center", ha="center")
+    ax.set(
+        ylabel=r"$\alpha$",
+        xlabel=r"$\beta$",
+        title=f"Mean rewards over {values.shape[-1]} experiments with at most {max_steps} steps.",
+    )
+    ax.set_xticks(range(len(beta_list)), beta_list)
+    ax.set_yticks(range(len(alpha_list)), alpha_list)
+    plt.show()
+
+    # best parameters
+    best_alpha, best_beta = np.unravel_index(mean_results.argmax(), values.shape[:-1])
+    print(
+        f"Best parameters - alpha: {alpha_list[best_alpha]}, beta: {beta_list[best_beta]}\n"
+        f"Number of steps: {values[best_alpha, best_beta, :].mean():.2f} "
+        f"+/- {1.96 * values[best_alpha, best_beta, :].std():.2f} "
+        f"[{values[best_alpha, best_beta, :].min():.2f}, {values[best_alpha, best_beta, :].max():.2f}]\n"
+    )
 
 
 if __name__ == "__main__":
@@ -172,42 +221,44 @@ if __name__ == "__main__":
             alpha=args.alpha,
             beta=args.beta,
         )
-        timer("Time spent on experiment")
+        timer("Time spent on the experiment")
     else:
-        alpha_values = [0.0, 0.5, 1.0, 2.0]
-        beta_values = [0.0, 0.3, 0.5, 0.7, 1.0]
+        alpha_values = [0.0, 0.2, 0.8]
+        beta_values = [0.2, 0.4, 0.9]
 
         results = np.zeros((len(alpha_values), len(beta_values), args.n_experiments))
         all_results = []
-        with Pool(processes=6) as pool:
+        with Pool(processes=8) as pool:
             for alpha_i, alpha_val in enumerate(alpha_values):
                 for beta_i, beta_val in enumerate(beta_values):
-                    # one big process for each (alpha, beta) instead of n_alpha x n_beta x args.n_experiments
-                    alpha_beta_result = pool.apply_async(
-                        parallel_experiment,
-                        (
-                            env,
-                            TreeBasedAgent(
-                                gravity,
-                                force_push,
-                                vx,
-                                max_bars=-1,
-                                alpha=alpha_val,
-                                beta=beta_val,
+                    # keeping only one computation for null alpha
+                    if alpha_val > 0 or beta_i == 0:
+                        # one big process for each (alpha, beta) instead of n_alpha x n_beta x args.n_experiments
+                        alpha_beta_result = pool.apply_async(
+                            parallel_experiment,
+                            (
+                                env,
+                                TreeBasedAgent(
+                                    gravity,
+                                    force_push,
+                                    vx,
+                                    max_bars=-1,
+                                    alpha=alpha_val,
+                                    beta=beta_val,
+                                ),
+                                args.n_experiments,
+                                args.max_steps,
                             ),
-                            args.n_experiments,
-                        ),
-                    )
-                    all_results.append((alpha_i, beta_i, alpha_beta_result))
+                        )
+                        all_results.append((alpha_i, beta_i, alpha_beta_result))
 
             for alpha_i, beta_i, res in all_results:
-                results[alpha_i, beta_i, :] = res.get(timeout=36000)
+                results[alpha_i, beta_i, :] = res.get(timeout=72000)
 
-        for alpha_i, alpha_val in enumerate(alpha_values):
-            for beta_i, beta_val in enumerate(beta_values):
-                print(
-                    f"Number of steps: {results[alpha_i, beta_i, :].mean():.2f} "
-                    f"+/- {1.96 * results[alpha_i, beta_i, :].std():.2f} "
-                    f"[{results[alpha_i, beta_i, :].min():.2f}, {results[alpha_i, beta_i, :].max():.2f}]\n"
-                )
+            for alpha_i, alpha_val in enumerate(alpha_values):
+                for beta_i, beta_val in enumerate(beta_values):
+                    if alpha_val == 0 and beta_i > 0:
+                        results[alpha_i, beta_i, :] = results[alpha_i, 0, :]
+
+        display_results(results, alpha_values, beta_values, args.max_steps)
         timer("Time spent on parameters tuning")
