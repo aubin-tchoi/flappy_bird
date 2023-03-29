@@ -1,12 +1,13 @@
 import argparse
+from multiprocessing import Pool, Manager
+from multiprocessing.managers import SyncManager
 from typing import List
-from multiprocessing import Pool
 
 import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sns
 from deep_rl.environments.flappy_bird import FlappyBird
-from tqdm import trange
+from tqdm import trange, tqdm
 
 from src import infer_parameters, TreeBasedAgent, checkpoint
 
@@ -121,12 +122,28 @@ def parallel_experiment(
     environment: FlappyBird,
     agent: TreeBasedAgent,
     n_experiments: int,
-    max_steps: int = 1000,
+    max_steps: int,
+    p_id: int,
+    lock_manager: SyncManager,
 ) -> np.ndarray:
     """
     Launches an experiment. Allows for easy multiprocessing as it is a pure function.
     """
     n_steps = np.zeros(n_experiments)
+
+    with lock_manager:
+        global_progress_bar = tqdm(
+            desc=f"Total over all runs - alpha: {agent.alpha}, beta: {agent.beta}",
+            total=n_experiments,
+            position=2 * p_id,
+            leave=False,
+        )
+        inner_progress_bar = tqdm(
+            desc=f"Progress within run - alpha: {agent.alpha}, beta: {agent.beta}",
+            total=max_steps,
+            position=2 * p_id + 1,
+            leave=False,
+        )
 
     for exp in range(n_experiments):
         step, total_reward = 0, 0
@@ -137,7 +154,18 @@ def parallel_experiment(
             total_reward += reward
             if done:
                 break
+
+            with lock_manager:
+                inner_progress_bar.update()
+        with lock_manager:
+            inner_progress_bar.reset()
+            global_progress_bar.update()
+
         n_steps[exp] = step
+
+    with lock_manager:
+        global_progress_bar.close()
+        inner_progress_bar.close()
 
     return n_steps
 
@@ -225,9 +253,11 @@ if __name__ == "__main__":
     else:
         alpha_values = [0.0, 0.2, 0.8]
         beta_values = [0.2, 0.4, 0.9]
+        lock, process_id = Manager().Lock(), 0
 
         results = np.zeros((len(alpha_values), len(beta_values), args.n_experiments))
         all_results = []
+
         with Pool(processes=8) as pool:
             for alpha_i, alpha_val in enumerate(alpha_values):
                 for beta_i, beta_val in enumerate(beta_values):
@@ -236,7 +266,7 @@ if __name__ == "__main__":
                         # one big process for each (alpha, beta) instead of n_alpha x n_beta x args.n_experiments
                         alpha_beta_result = pool.apply_async(
                             parallel_experiment,
-                            (
+                            args=(
                                 env,
                                 TreeBasedAgent(
                                     gravity,
@@ -248,9 +278,12 @@ if __name__ == "__main__":
                                 ),
                                 args.n_experiments,
                                 args.max_steps,
+                                process_id,
+                                lock,
                             ),
                         )
                         all_results.append((alpha_i, beta_i, alpha_beta_result))
+                        process_id += 1
 
             for alpha_i, beta_i, res in all_results:
                 results[alpha_i, beta_i, :] = res.get(timeout=72000)
