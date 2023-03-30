@@ -35,17 +35,19 @@ if __name__ == "__main__":
             disable_progress_bar=not args.enable_inner_progress_bar,
             alpha=args.alpha,
             beta=args.beta,
+            heuristic=args.heuristic,
         )
         timer("Time spent on the experiment")
     else:
-        alpha_values = [0.0, 0.2, 0.3]
-        beta_values = [0.3, 0.4, 0.5]
+        alpha_values = [1.5, 1.75, 2.0]
+        beta_values = [0.75, 1.25]
         results = launch_cross_validation(
             alpha_values,
             beta_values,
             env,
             args.n_experiments,
             args.max_steps,
+            args.heuristic,
             gravity,
             force_push,
             vx,
