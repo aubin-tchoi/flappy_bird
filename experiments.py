@@ -1,7 +1,6 @@
-import sys
 from multiprocessing import Pool, Manager
 from multiprocessing.managers import SyncManager
-from typing import List
+from typing import List, Literal
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -17,6 +16,7 @@ def launch_multiple_experiments(
     n_experiments: int,
     alpha: float = 0.0,
     beta: float = 0.3,
+    heuristic: Literal["convex", "geometric"] = "convex",
     max_steps: int = 1000,
     gravity: float = 0.05,
     force_push: float = 0.1,
@@ -27,7 +27,15 @@ def launch_multiple_experiments(
     """
     Launches multiple runs for a single set of settings to obtain averaged results.
     """
-    agent = TreeBasedAgent(gravity, force_push, vx, alpha=alpha, beta=beta, max_bars=-1)
+    agent = TreeBasedAgent(
+        gravity,
+        force_push,
+        vx,
+        alpha=alpha,
+        beta=beta,
+        max_bars=-1,
+        heuristic=heuristic,
+    )
     environment.reset()
     observation = environment.step(0)[0]
 
@@ -132,16 +140,6 @@ def parallel_experiment(
     with lock_manager:
         global_progress_bar.close()
         inner_progress_bar.close()
-        global_progress_bar.write(
-            f"All runs completed for alpha: {agent.alpha}, beta: {agent.beta}",
-            file=sys.stderr,
-            end="\r",
-        )
-        inner_progress_bar.write(
-            f"Last run completed for alpha: {agent.alpha}, beta: {agent.beta}",
-            file=sys.stderr,
-            end="\r",
-        )
 
     return n_steps
 
@@ -152,6 +150,7 @@ def launch_cross_validation(
     environment: FlappyBird,
     n_experiments: int,
     max_steps: int,
+    heuristic: Literal["convex", "geometric"] = "convex",
     gravity: float = 0.05,
     force_push: float = 0.1,
     vx: float = 0.05,
@@ -187,6 +186,7 @@ def launch_cross_validation(
                                 max_bars=-1,
                                 alpha=alpha_val,
                                 beta=beta_val,
+                                heuristic=heuristic,
                             ),
                             n_experiments,
                             max_steps,

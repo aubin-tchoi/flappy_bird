@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from functools import wraps
 from math import ceil, log
-from typing import List, cast, Callable, Any
+from typing import List, cast, Callable, Any, Literal
 
 import numpy as np
 from multimethod import multimethod
@@ -48,6 +48,9 @@ class TreeBasedAgent:
 
     base_x: float = 0.5
     """Initial x position of the bird (it actually stays the same as only the bars move to avoid eventual overflow)."""
+
+    heuristic: Literal["convex", "geometric"] = "convex"
+    """Parameter that controls the choice of the function to guide the bird towards the center with a small velocity."""
 
     def _process_bars(self, bars: List[Bar]) -> None:
         """
@@ -98,8 +101,11 @@ class TreeBasedAgent:
         """
         Processes the bars passed if any.
         """
-        assert 0.0 <= self.beta <= 1.0, "beta should be between 0. and 1."
-        self.outcomes_type = bool if self.alpha == 0 else float
+        if self.heuristic == "convex":
+            assert 0.0 <= self.beta <= 1.0, "beta should be between 0. and 1."
+        self.outcomes_type = (
+            bool if self.alpha == 0 and self.heuristic == "convex" else float
+        )
         if self.bars is not None:
             self._process_bars(self.bars)
 
@@ -158,10 +164,20 @@ class TreeBasedAgent:
                 np.ones(1, dtype=self.outcomes_type)
                 * (not self._is_bird_crashing(bird_x, bird_y))
                 * (
-                    1
-                    - self.alpha
-                    * np.sqrt(
-                        self.beta * (bird_y - 0.5) ** 2 + (1 - self.beta) * bird_vy**2
+                    (
+                        1
+                        - self.alpha
+                        * np.sqrt(
+                            self.beta * (bird_y - 0.5) ** 2
+                            + (1 - self.beta) * bird_vy**2
+                        )
+                    )
+                    if self.heuristic == "convex"
+                    else (
+                        1
+                        - abs(bird_y - 0.5) ** self.alpha
+                        * abs(bird_vy) ** self.beta
+                        / (0.5**self.alpha * 0.4**self.beta)
                     )
                 )
             )
