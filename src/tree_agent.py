@@ -99,6 +99,7 @@ class TreeBasedAgent:
         Processes the bars passed if any.
         """
         assert 0.0 <= self.beta <= 1.0, "beta should be between 0. and 1."
+        self.outcomes_type = bool if self.alpha == 0 else float
         if self.bars is not None:
             self._process_bars(self.bars)
 
@@ -154,7 +155,7 @@ class TreeBasedAgent:
         if tree_depth == 0:
             self.n_steps_computed += 1
             return (
-                np.ones(1, dtype=float)
+                np.ones(1, dtype=self.outcomes_type)
                 * (not self._is_bird_crashing(bird_x, bird_y))
                 * (
                     1
@@ -169,10 +170,10 @@ class TreeBasedAgent:
             if verbose:
                 print("Dead branch")
             self.n_steps_saved += 2**tree_depth
-            return np.zeros(2**tree_depth, dtype=float)
+            return np.zeros(2**tree_depth, dtype=self.outcomes_type)
 
         # TODO: in the environment the bars move instead of the bird, this will cause an issue in the update
-        outcomes = np.ones(2**tree_depth, dtype=float)
+        outcomes = np.ones(2**tree_depth, dtype=self.outcomes_type)
         # the even indices correspond to standing still
         outcomes[::2] = self._build_tree(
             bird_x + self.vx,
