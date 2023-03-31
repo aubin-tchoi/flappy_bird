@@ -50,6 +50,13 @@ def parse_args() -> argparse.Namespace:
         default=0.3,
         help="Factor between 0 and 1 that balances between the two regularizing factors.",
     )
+    parser.add_argument(
+        "--heuristic",
+        type=str,
+        default="convex",
+        choices=["convex", "geometric"],
+        help="Parameter that selects the heuristic used to guide the bird towards the center with a small velocity.",
+    )
 
     return parser.parse_args()
 
@@ -66,30 +73,42 @@ def display_results(
     gives the best parameters.
     """
     mean_results = values.mean(axis=-1)
+    success_rates = (values == max_steps).mean(axis=-1)
     for alpha_idx, alpha in enumerate(alpha_list):
         for beta_idx, beta in enumerate(beta_list):
             print(
-                f"Parameters - alpha: {alpha}, beta: {beta}\n"
+                f"Parameters - alpha: {alpha}, beta: {beta}: success rate: {success_rates[alpha_idx, beta_idx]:.2f}\n"
                 f"Number of steps: {mean_results[alpha_idx, beta_idx]:.2f} "
                 f"+/- {1.96 * values[alpha_idx, beta_idx, :].std():.2f} "
                 f"[{values[alpha_idx, beta_idx, :].min():.2f}, {values[alpha_idx, beta_idx, :].max():.2f}]\n"
             )
 
     # matrix plot
-    fig, ax = plt.subplots(figsize=(4 * len(alpha_list), 4 * len(beta_list)))
+    # noinspection PyArgumentEqualDefault
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(8 * len(beta_list), 4 * len(alpha_list)))
     # noinspection PyUnresolvedReferences
-    ax.matshow(mean_results, cmap=plt.cm.Blues)
+    ax1.matshow(mean_results, cmap=plt.cm.Blues)
+    # noinspection PyUnresolvedReferences
+    ax2.matshow(success_rates, cmap=plt.cm.Blues)
     for row in range(mean_results.shape[1]):
         for col in range(mean_results.shape[0]):
             # not the same convention between numpy and matshow (column-major)
-            ax.text(row, col, f"{mean_results[col, row]:.2f}", va="center", ha="center")
-    ax.set(
+            ax1.text(row, col, f"{mean_results[col, row]:.2f}", va="center", ha="center")
+            ax2.text(row, col, f"{success_rates[col, row] * 100:.2f}%", va="center", ha="center")
+    ax1.set(
         ylabel=r"$\alpha$",
         xlabel=r"$\beta$",
         title=f"Mean rewards over {values.shape[-1]} experiments with at most {max_steps} steps.",
     )
-    ax.set_xticks(range(len(beta_list)), beta_list)
-    ax.set_yticks(range(len(alpha_list)), alpha_list)
+    ax1.set_xticks(range(len(beta_list)), beta_list)
+    ax1.set_yticks(range(len(alpha_list)), alpha_list)
+    ax2.set(
+        ylabel=r"$\alpha$",
+        xlabel=r"$\beta$",
+        title=f"Mean success rates over {values.shape[-1]} experiments with at most {max_steps} steps.",
+    )
+    ax2.set_xticks(range(len(beta_list)), beta_list)
+    ax2.set_yticks(range(len(alpha_list)), alpha_list)
     plt.show()
 
     # best parameters
