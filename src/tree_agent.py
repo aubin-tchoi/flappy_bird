@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from functools import wraps
 from math import ceil, log
-from typing import List, cast, Callable, Any, Literal, Optional, Union
+from typing import List, cast, Callable, Any, Literal
 
 import numpy as np
 from multimethod import multimethod
@@ -32,9 +32,9 @@ class TreeBasedAgent:
     beta: float = 0.3
     """Factor between 0 and 1 that balances between the two regularizing factors (y close to 0.5 and vy close to 0)."""
 
-    bars: Optional[List[Bar]] = None
+    bars: List[Bar] | None = None
     """Positions of the bars to dodge, in the same format as in the observations."""
-    outcomes: Optional[np.ndarray] = None
+    outcomes: np.ndarray | None = None
     """Leaves of the binary tree of the predicted outcomes for each possible sequence of decision (array of bool)."""
 
     # TODO: maybe replace max_bars by a max distance (== max tree depth) if the RAM consumption is too high
@@ -236,7 +236,7 @@ class TreeBasedAgent:
 
     def update(
         self,
-        action: Union[bool, int],
+        action: bool | int,
         observation: Observation,
         verbose: bool = False,
     ) -> None:
@@ -290,7 +290,7 @@ class TreeBasedAgent:
         return bool(self.outcomes[sum(2**d for d in decisions)])
 
     @_requires_outcomes
-    def predict_trajectory_success_rate(self, *decisions: Union[bool, int]) -> float:
+    def predict_trajectory_success_rate(self, *decisions: bool | int) -> float:
         """
         Computes the proportion of successful outcomes associated with a given partial sequence of decisions.
         """
