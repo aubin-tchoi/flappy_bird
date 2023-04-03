@@ -1,7 +1,6 @@
 from dataclasses import dataclass
-from functools import wraps
 from math import ceil, log
-from typing import List, cast, Callable, Any, Literal, Optional, Union
+from typing import List, cast, Literal, Optional, Union
 
 import numpy as np
 from multimethod import multimethod
@@ -81,21 +80,6 @@ class TreeBasedAgent:
                 key=lambda bar: bar[0],
                 # taking the first max_bars bars
             )[: self.max_bars]
-
-    @staticmethod
-    def _requires_outcomes(func: Callable[..., Any]) -> Callable[..., Any]:
-        """
-        Decorator for methods that require having called predict beforehand.
-        """
-
-        @wraps(func)
-        def requires_outcomes_wrapper(self, *args: Any, **kwargs: Any):
-            assert (
-                self.outcomes is not None
-            ), "Outcomes are not computed yet, please call TreeBasedAgent.predict first."
-            return func(self, *args, **kwargs)
-
-        return requires_outcomes_wrapper
 
     def __post_init__(self):
         """
@@ -261,7 +245,6 @@ class TreeBasedAgent:
             self.outcomes = self.outcomes[int(action) :: 2]
 
     @multimethod
-    @_requires_outcomes
     def act(self) -> int:
         """
         Returns the best action.
@@ -279,7 +262,6 @@ class TreeBasedAgent:
         self.predict(observation, verbose)
         return int(self.outcomes[1::2].sum() > self.outcomes[0::2].sum())
 
-    @_requires_outcomes
     def predict_trajectory_outcome(self, decisions: List[bool]) -> bool:
         """
         Computes the outcome (whether the bird crashes or not) of a given sequence of decisions.
@@ -289,7 +271,6 @@ class TreeBasedAgent:
         ), "Invalid number of decisions"
         return bool(self.outcomes[sum(2**d for d in decisions)])
 
-    @_requires_outcomes
     def predict_trajectory_success_rate(self, *decisions: Union[bool, int]) -> float:
         """
         Computes the proportion of successful outcomes associated with a given partial sequence of decisions.
@@ -301,7 +282,6 @@ class TreeBasedAgent:
 
         return tree_portion.sum() / self.outcomes.shape[0]
 
-    @_requires_outcomes
     def print_outcomes_stats(self) -> None:
         print(
             f"\nNumber of favorable outcomes:  {self.outcomes.sum():>5} / "
@@ -314,7 +294,6 @@ class TreeBasedAgent:
             f"- Probability of winning when jumping:        {self.predict_trajectory_success_rate(1) * 100:.2f}%\n"
         )
 
-    @_requires_outcomes
     def print_successful_decisions(self, max_lines: int = 10) -> None:
         successful_trajectories = self.outcomes.nonzero()[0]
         indices = np.random.choice(
@@ -333,7 +312,6 @@ class TreeBasedAgent:
             )
         )
 
-    @_requires_outcomes
     def print_successful_trajectories(
         self,
         bird_x: float,
