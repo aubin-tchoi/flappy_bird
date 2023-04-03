@@ -32,7 +32,6 @@ if __name__ == "__main__":
             args.n_experiments,
             max_steps=args.max_steps,
             verbose=args.verbose,
-            disable_progress_bar=not args.enable_inner_progress_bar,
             alpha=args.alpha,
             beta=args.beta,
             heuristic=args.heuristic,

@@ -22,7 +22,6 @@ def launch_multiple_experiments(
     force_push: float = 0.1,
     vx: float = 0.05,
     verbose: bool = False,
-    disable_progress_bar: bool = False,
 ) -> None:
     """
     Launches multiple runs for a single set of settings to obtain averaged results.
@@ -44,14 +43,7 @@ def launch_multiple_experiments(
 
     for exp in trange(n_experiments, desc="Number of finished runs", position=0):
         step, total_reward = 0, 0
-        for step in trange(
-            1,
-            max_steps + 1,
-            desc="Steps within an episode",
-            disable=disable_progress_bar,
-            position=1,
-            leave=False,
-        ):
+        for step in range(1, max_steps + 1):
             action = agent.act(observation)
             observation, reward, done = environment.step(action)
             if verbose:
