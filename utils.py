@@ -98,7 +98,7 @@ def display_results(
     ax1.set(
         ylabel=r"$\alpha$",
         xlabel=r"$\beta$",
-        title=f"Mean rewards over {values.shape[-1]} experiments with at most {max_steps} steps.",
+        title=f"Mean number of steps over {values.shape[-1]} experiments with at most {max_steps} steps.",
     )
     ax1.set_xticks(range(len(beta_list)), beta_list)
     ax1.set_yticks(range(len(alpha_list)), alpha_list)
