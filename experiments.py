@@ -45,12 +45,12 @@ def launch_multiple_experiments(
     for exp in trange(n_experiments, desc="Number of finished runs", position=0):
         step, total_reward = 0, 0
         for step in trange(
-                1,
-                max_steps + 1,
-                desc="Steps within an episode",
-                disable=disable_progress_bar,
-                position=1,
-                leave=False,
+            1,
+            max_steps + 1,
+            desc="Steps within an episode",
+            disable=disable_progress_bar,
+            position=1,
+            leave=False,
         ):
             action = agent.sample_action(observation)
             observation, reward, done = environment.step(action)
