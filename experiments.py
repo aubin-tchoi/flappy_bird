@@ -52,7 +52,7 @@ def launch_multiple_experiments(
             position=1,
             leave=False,
         ):
-            action = agent.act(observation)
+            action = agent.sample_action(observation)
             observation, reward, done = environment.step(action)
             if verbose:
                 print(
@@ -87,8 +87,8 @@ def launch_multiple_experiments(
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 6))
     ax1.hist(rewards, bins=int(rewards.max(initial=0)) // 2)
     ax2.hist(n_steps, bins=int(n_steps.max(initial=0)))
-    ax1.set(xlabel="n_steps", ylabel="number of occurrences")
-    ax2.set(xlabel="reward", ylabel="number of occurrences")
+    ax1.set(xlabel="rewards", ylabel="number of occurrences")
+    ax2.set(xlabel="n_steps", ylabel="number of occurrences")
     plt.show()
 
 
@@ -123,7 +123,7 @@ def parallel_experiment(
         step, total_reward = 0, 0
         observation = environment.reset()
         for step in range(1, max_steps + 1):
-            action = agent.act(observation)
+            action = agent.sample_action(observation)
             observation, reward, done = environment.step(action)
             total_reward += reward
             if done:
