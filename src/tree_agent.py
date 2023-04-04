@@ -52,6 +52,9 @@ class TreeBasedAgent:
     heuristic: Literal["convex", "geometric"] = "convex"
     """Parameter that controls the choice of the function to guide the bird towards the center with a small velocity."""
 
+    verbose: bool = False
+    """Enables debug messages."""
+
     def _process_bars(self, bars: List[Bar]) -> None:
         """
         Processes bars by filtering inactive bars, shifting them, sorting them, and keeping only a number of them.
@@ -130,7 +133,6 @@ class TreeBasedAgent:
         bird_x: float,
         bird_y: float,
         bird_vy: float,
-        verbose: bool,
         depth: int = 0,
     ) -> np.ndarray:
         """
@@ -153,7 +155,7 @@ class TreeBasedAgent:
             if self.bars
             else 10 - depth
         )
-        if verbose:
+        if self.verbose:
             print(
                 f"\ndepth - {depth:>2}: coordinates ({bird_x:.2f}, {bird_y:.2f}), speed {bird_vy:+.2f}"
             )
@@ -183,7 +185,7 @@ class TreeBasedAgent:
             )
 
         if self._is_bird_crashing(bird_x, bird_y):
-            if verbose:
+            if self.verbose:
                 print("Dead branch")
             self.n_steps_saved += 2**tree_depth
             return np.zeros(2**tree_depth, dtype=self.outcomes_type)
@@ -195,7 +197,6 @@ class TreeBasedAgent:
             bird_x + self.vx,
             bird_y + bird_vy - self.gravity,
             bird_vy - self.gravity,
-            verbose,
             depth + 1,
         )
         # the odd indices correspond to jumping
@@ -203,7 +204,6 @@ class TreeBasedAgent:
             bird_x + self.vx,
             bird_y + bird_vy - self.gravity + self.force_push,
             bird_vy - self.gravity + self.force_push,
-            verbose,
             depth + 1,
         )
 
@@ -215,30 +215,27 @@ class TreeBasedAgent:
         bird_x: float,
         bird_y: float,
         bird_vy: float,
-        verbose: bool = False,
     ) -> None:
         """
         Builds the tree / compute the outcomes.
         """
-        self.outcomes = self._build_tree(bird_x, bird_y, bird_vy, verbose)
+        self.outcomes = self._build_tree(bird_x, bird_y, bird_vy)
 
     @multimethod
     def predict(
         self,
         observation: Observation,
-        verbose: bool = False,
     ) -> None:
         """
         Builds the tree / compute the outcomes.
         """
         self._process_bars(observation[1])
-        self.outcomes = self._build_tree(*observation[0], verbose)
+        self.outcomes = self._build_tree(*observation[0])
 
     def update(
         self,
         action: bool | int,
         observation: Observation,
-        verbose: bool = False,
     ) -> None:
         """
         Updates the outcomes (WIP).
@@ -247,13 +244,13 @@ class TreeBasedAgent:
         # removing bars the bird successfully jumped over
         for x_left, x_right, height, pos in self.bars:
             if x_right < observation[0][0]:
-                if verbose:
+                if self.verbose:
                     print("Removing a bar")
                 self.bars.pop(0)
                 break  # you cannot jump over more than one bar at once
 
         if len((new_bars := observation[1][: self.max_bars])) != len(self.bars):
-            if verbose:
+            if self.verbose:
                 print("Rebuilding the tree")
             self._process_bars(new_bars)
             self.predict(*observation[0])
@@ -269,14 +266,15 @@ class TreeBasedAgent:
         # TODO: maybe consider consuming the value of self.outcomes in this method (putting it back to None)
         return int(self.outcomes[1::2].sum() > self.outcomes[0::2].sum())
 
+    # noinspection PyUnusedLocal
     @multimethod
-    def sample_action(self, observation: Observation, eval_mode: bool = False, verbose: bool = False) -> int:
+    def sample_action(self, observation: Observation, eval_mode: bool = False) -> int:
         """
         Returns the best action according to a given observation. Recomputes the tree entirely.
         """
         # TODO: implement a heuristic in case of equality (triggered when there is no possible trajectory)
         # one possible heuristic would consist in lowering the depth of the tree to get maybe one more point
-        self.predict(observation, verbose)
+        self.predict(observation)
         return int(self.outcomes[1::2].sum() > self.outcomes[0::2].sum())
 
     @_requires_outcomes
