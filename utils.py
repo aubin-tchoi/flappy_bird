@@ -54,7 +54,7 @@ def parse_args() -> argparse.Namespace:
         "--heuristic",
         type=str,
         default="convex",
-        choices=["convex", "geometric"],
+        choices=["convex", "geometric", "exact"],
         help="Parameter that selects the heuristic used to guide the bird towards the center with a small velocity.",
     )
 

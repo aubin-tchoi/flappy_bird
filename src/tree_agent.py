@@ -1,7 +1,8 @@
+from copy import deepcopy
 from dataclasses import dataclass
 from functools import wraps
 from math import ceil, log
-from typing import List, cast, Callable, Any, Literal
+from typing import List, cast, Callable, Any, Literal, Dict, Tuple
 
 import numpy as np
 from multimethod import multimethod
@@ -49,11 +50,17 @@ class TreeBasedAgent:
     base_x: float = 0.5
     """Initial x position of the bird (it actually stays the same as only the bars move to avoid eventual overflow)."""
 
-    heuristic: Literal["convex", "geometric"] = "convex"
+    heuristic: Literal["convex", "geometric", "exact"] = "exact"
     """Parameter that controls the choice of the function to guide the bird towards the center with a small velocity."""
 
     verbose: bool = False
     """Enables debug messages."""
+
+    score_function: Dict[Tuple[float, float], float] | None = None
+    """Score function used if heuristic == 'exact' to guide the bird based on its current position and velocity."""
+
+    min_tree_depth: int = 10
+    """Minimal tree depth used when there is no bar or when the exact score function is computed."""
 
     def _process_bars(self, bars: List[Bar]) -> None:
         """
@@ -100,15 +107,83 @@ class TreeBasedAgent:
 
         return requires_outcomes_wrapper
 
+    def pre_compute_score_function(self):
+        bars = deepcopy(self.bars)
+        self.bars = []
+
+        score_function = {}
+        base_y, base_vy = self.base_x, 0
+
+        fall_steps = 0
+        while True:
+            push_steps = 0
+            y = base_y - self.gravity * fall_steps
+
+            while 1.1 >= y >= -0.1:
+                v_y = base_vy - self.gravity * fall_steps
+                while 0.5 >= v_y > -0.5:
+                    v_y += self.force_push
+                    score_function[(round(y, 3), round(v_y, 3))] = (
+                        self._build_tree(
+                            self.base_x, y, v_y, enforce_binary_score=True
+                        ).sum()
+                        / 2**self.min_tree_depth
+                    )
+                y += self.force_push
+                push_steps += 1
+            fall_steps += 1
+            if push_steps == 0:
+                break
+
+        self.score_function = score_function
+        self.bars = bars
+
+    def compute_exact_score(self, bird_y: float, bird_vy: float) -> float:
+        """
+        Computes a leaf-score based on the proportion of favorable trajectories with an empty window starting from a
+        given position. Should be low if we are close to a border with a speed that sends us too fast on it.
+        """
+        bars = deepcopy(self.bars)
+        self.bars = []
+        score = (
+            self._build_tree(
+                self.base_x, bird_y, bird_vy, enforce_binary_score=True
+            ).sum()
+            / 2**self.min_tree_depth
+        )
+        self.bars = bars
+        return score
+
+    def compute_score(self, bird_y: float, bird_vy: float):
+        """
+        Computes the leaf score associated to a tuple (y, v_y) using the heuristic specified with self.heuristic.
+        """
+        if self.heuristic == "convex":
+            score = 1 - self.alpha * np.sqrt(
+                self.beta * (bird_y - 0.5) ** 2 + (1 - self.beta) * bird_vy**2
+            )
+        elif self.heuristic == "geometric":
+            score = 1 - abs(bird_y - 0.5) ** self.alpha * abs(bird_vy) ** self.beta / (
+                0.5**self.alpha * 0.4**self.beta
+            )
+        elif self.heuristic == "exact" and self.score_function is not None:
+            score = self.score_function[(round(bird_y, 3), round(bird_vy, 3))]
+        else:
+            score = self.compute_exact_score(bird_y, bird_vy)
+        return score
+
     def __post_init__(self):
         """
         Processes the bars passed if any.
         """
-        if self.heuristic == "convex":
-            assert 0.0 <= self.beta <= 1.0, "beta should be between 0. and 1."
         self.outcomes_type = (
             bool if self.alpha == 0 and self.heuristic == "convex" else float
         )
+        compute_score_function = False
+        if self.heuristic == "convex":
+            assert 0.0 <= self.beta <= 1.0, "beta should be between 0. and 1."
+        elif self.heuristic == "exact" and compute_score_function:
+            self.pre_compute_score_function()
         if self.bars is not None:
             self._process_bars(self.bars)
 
@@ -134,6 +209,7 @@ class TreeBasedAgent:
         bird_y: float,
         bird_vy: float,
         depth: int = 0,
+        enforce_binary_score: bool = False,
     ) -> np.ndarray:
         """
         Recursive function to build the binary tree.
@@ -153,11 +229,11 @@ class TreeBasedAgent:
                 0,
             )
             if self.bars
-            else 10 - depth
+            else self.min_tree_depth - depth
         )
         if self.verbose:
             print(
-                f"\ndepth - {depth:>2}: coordinates ({bird_x:.2f}, {bird_y:.2f}), speed {bird_vy:+.2f}"
+                f"depth - {depth:>2}: coordinates ({bird_x:.2f}, {bird_y:+.2f}), speed {bird_vy:+.2f}"
             )
 
         if tree_depth == 0:
@@ -165,23 +241,7 @@ class TreeBasedAgent:
             return (
                 np.ones(1, dtype=self.outcomes_type)
                 * (not self._is_bird_crashing(bird_x, bird_y))
-                * (
-                    (
-                        1
-                        - self.alpha
-                        * np.sqrt(
-                            self.beta * (bird_y - 0.5) ** 2
-                            + (1 - self.beta) * bird_vy**2
-                        )
-                    )
-                    if self.heuristic == "convex"
-                    else (
-                        1
-                        - abs(bird_y - 0.5) ** self.alpha
-                        * abs(bird_vy) ** self.beta
-                        / (0.5**self.alpha * 0.4**self.beta)
-                    )
-                )
+                * (1 if enforce_binary_score else self.compute_score(bird_y, bird_vy))
             )
 
         if self._is_bird_crashing(bird_x, bird_y):
@@ -198,6 +258,7 @@ class TreeBasedAgent:
             bird_y + bird_vy - self.gravity,
             bird_vy - self.gravity,
             depth + 1,
+            enforce_binary_score,
         )
         # the odd indices correspond to jumping
         outcomes[1::2] = self._build_tree(
@@ -205,6 +266,7 @@ class TreeBasedAgent:
             bird_y + bird_vy - self.gravity + self.force_push,
             bird_vy - self.gravity + self.force_push,
             depth + 1,
+            enforce_binary_score,
         )
 
         return outcomes
