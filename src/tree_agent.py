@@ -1,5 +1,5 @@
 from copy import deepcopy
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from functools import wraps
 from math import ceil, log
 from typing import List, cast, Callable, Any, Literal, Dict, Tuple
@@ -56,7 +56,7 @@ class TreeBasedAgent:
     verbose: bool = False
     """Enables debug messages."""
 
-    score_function: Dict[Tuple[float, float], float] | None = None
+    score_function: Dict[Tuple[float, float], float] = field(default_factory=dict)
     """Score function used if heuristic == 'exact' to guide the bird based on its current position and velocity."""
 
     min_tree_depth: int = 10
@@ -107,37 +107,6 @@ class TreeBasedAgent:
 
         return requires_outcomes_wrapper
 
-    def pre_compute_score_function(self):
-        bars = deepcopy(self.bars)
-        self.bars = []
-
-        score_function = {}
-        base_y, base_vy = self.base_x, 0
-
-        fall_steps = 0
-        while True:
-            push_steps = 0
-            y = base_y - self.gravity * fall_steps
-
-            while 1.1 >= y >= -0.1:
-                v_y = base_vy - self.gravity * fall_steps
-                while 0.5 >= v_y > -0.5:
-                    v_y += self.force_push
-                    score_function[(round(y, 3), round(v_y, 3))] = (
-                        self._build_tree(
-                            self.base_x, y, v_y, enforce_binary_score=True
-                        ).sum()
-                        / 2**self.min_tree_depth
-                    )
-                y += self.force_push
-                push_steps += 1
-            fall_steps += 1
-            if push_steps == 0:
-                break
-
-        self.score_function = score_function
-        self.bars = bars
-
     def compute_exact_score(self, bird_y: float, bird_vy: float) -> float:
         """
         Computes a leaf-score based on the proportion of favorable trajectories with an empty window starting from a
@@ -154,7 +123,7 @@ class TreeBasedAgent:
         self.bars = bars
         return score
 
-    def compute_score(self, bird_y: float, bird_vy: float):
+    def compute_leaf_score(self, bird_y: float, bird_vy: float):
         """
         Computes the leaf score associated to a tuple (y, v_y) using the heuristic specified with self.heuristic.
         """
@@ -166,24 +135,25 @@ class TreeBasedAgent:
             score = 1 - abs(bird_y - 0.5) ** self.alpha * abs(bird_vy) ** self.beta / (
                 0.5**self.alpha * 0.4**self.beta
             )
-        elif self.heuristic == "exact" and self.score_function is not None:
+        elif self.heuristic == "exact":
+            if (round(bird_y, 3), round(bird_vy, 3)) not in self.score_function:
+                self.score_function[
+                    (round(bird_y, 3), round(bird_vy, 3))
+                ] = self.compute_exact_score(bird_y, bird_vy)
             score = self.score_function[(round(bird_y, 3), round(bird_vy, 3))]
         else:
-            score = self.compute_exact_score(bird_y, bird_vy)
+            score = 1
         return score
 
     def __post_init__(self):
         """
         Processes the bars passed if any.
         """
+        if self.heuristic == "convex":
+            assert 0.0 <= self.beta <= 1.0, "beta should be between 0. and 1."
         self.outcomes_type = (
             bool if self.alpha == 0 and self.heuristic == "convex" else float
         )
-        compute_score_function = False
-        if self.heuristic == "convex":
-            assert 0.0 <= self.beta <= 1.0, "beta should be between 0. and 1."
-        elif self.heuristic == "exact" and compute_score_function:
-            self.pre_compute_score_function()
         if self.bars is not None:
             self._process_bars(self.bars)
 
@@ -241,7 +211,11 @@ class TreeBasedAgent:
             return (
                 np.ones(1, dtype=self.outcomes_type)
                 * (not self._is_bird_crashing(bird_x, bird_y))
-                * (1 if enforce_binary_score else self.compute_score(bird_y, bird_vy))
+                * (
+                    1
+                    if enforce_binary_score
+                    else self.compute_leaf_score(bird_y, bird_vy)
+                )
             )
 
         if self._is_bird_crashing(bird_x, bird_y):
