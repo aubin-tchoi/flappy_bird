@@ -262,7 +262,7 @@ class TreeBasedAgent:
 
     @multimethod
     @_requires_outcomes
-    def act(self) -> int:
+    def sample_action(self) -> int:
         """
         Returns the best action.
         """
@@ -270,7 +270,7 @@ class TreeBasedAgent:
         return int(self.outcomes[1::2].sum() > self.outcomes[0::2].sum())
 
     @multimethod
-    def act(self, observation: Observation, verbose: bool = False) -> int:
+    def sample_action(self, observation: Observation, eval_mode: bool = False, verbose: bool = False) -> int:
         """
         Returns the best action according to a given observation. Recomputes the tree entirely.
         """
