@@ -207,3 +207,23 @@ def launch_cross_validation(
                     all_results[alpha_i, beta_i, :] = all_results[alpha_i, 0, :]
 
     return all_results
+
+
+def launch_concurrent_runs(
+    environment: FlappyBird,
+    first_agent,
+    second_agent,
+    n_experiments: int,
+    max_steps: int,
+) -> float:
+    """
+    Launches a series of concurrent runs, where two agents compete against one another in order to identify the
+    strengths and weaknesses of each agent through an analysis of the situations where one of the agent fails and the
+    other one succeeds.
+    One agent should be using the environment, and a parallel environment that has the same bars as the first one but
+    whose position and velocity is controlled by the actions of the second agent. This can be done by reproducing the
+    dynamic of the problem (see TreeBasedAgent._build_tree for the dynamic and TreeBasedAgent._is_bird_crashing for the
+    condition of a crash).
+    TODO: implement concurrent runs.
+    """
+    pass
