@@ -16,7 +16,7 @@ def launch_multiple_experiments(
     n_experiments: int,
     alpha: float = 0.0,
     beta: float = 0.3,
-    heuristic: Literal["convex", "geometric"] = "convex",
+    heuristic: Literal["convex", "geometric", "exact"] = "convex",
     max_steps: int = 1000,
     gravity: float = 0.05,
     force_push: float = 0.1,
@@ -83,10 +83,20 @@ def launch_multiple_experiments(
     )
 
     sns.set_theme()
+    # showing the score function computed as a matrix
+    if heuristic == "exact":
+        agent.visualize_score_function()
+
     # noinspection PyArgumentEqualDefault
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 6))
-    ax1.hist(rewards, bins=int(rewards.max(initial=0)) // 2)
-    ax2.hist(n_steps, bins=int(n_steps.max(initial=0)))
+    ax1.hist(
+        rewards,
+        bins=(int(rewards.max(initial=0)) - int(rewards.min(initial=max_steps)) or 1),
+    )
+    ax2.hist(
+        n_steps,
+        bins=(int(n_steps.max(initial=0)) - int(n_steps.min(initial=max_steps)) or 1),
+    )
     ax1.set(xlabel="rewards", ylabel="number of occurrences")
     ax2.set(xlabel="n_steps", ylabel="number of occurrences")
     plt.show()
@@ -150,7 +160,7 @@ def launch_cross_validation(
     environment: FlappyBird,
     n_experiments: int,
     max_steps: int,
-    heuristic: Literal["convex", "geometric"] = "convex",
+    heuristic: Literal["convex", "geometric", "exact"] = "convex",
     gravity: float = 0.05,
     force_push: float = 0.1,
     vx: float = 0.05,

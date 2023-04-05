@@ -4,6 +4,7 @@ from functools import wraps
 from math import ceil, log
 from typing import List, cast, Callable, Any, Literal, Dict, Tuple
 
+import matplotlib.pyplot as plt
 import numpy as np
 from multimethod import multimethod
 
@@ -402,3 +403,40 @@ class TreeBasedAgent:
                     end="",
                 )
             print()
+
+    def visualize_score_function(self) -> None:
+        """
+        Provides a visualization of the computed score function as a (y, v_y)-matrix.
+        """
+        # putting the observed values of (y, vy) in an array with zeros for unobserved values
+        vy_values = sorted(vy for y, vy in self.score_function.keys())
+        y_values = sorted((y for y, vy in self.score_function.keys()), reverse=True)
+
+        score_array = np.zeros((len(y_values), len(vy_values)), dtype=float)
+        for y_i, y in enumerate(y_values):
+            for vy_i, vy in enumerate(vy_values):
+                if (y, vy) in self.score_function:
+                    score_array[y_i, vy_i] = self.score_function[(y, vy)]
+                else:
+                    score_array[y_i, vy_i] = 0
+
+        fig = plt.figure(figsize=(14, 14))
+        ax = fig.add_subplot(111)
+
+        # displaying the score function with a color bar
+        cax = ax.matshow(score_array, interpolation="nearest")
+        fig.colorbar(cax)
+
+        # removing the white grid that comes with the default seaborn theme and setting ticks
+        ax.grid(False)
+        n_ticks = 20
+        ax.set_xticks(
+            range(len(vy_values))[:: len(vy_values) // n_ticks],
+            vy_values[:: len(vy_values) // n_ticks],
+        )
+        ax.set_yticks(
+            range(len(y_values))[:: len(y_values) // n_ticks],
+            y_values[:: len(y_values) // n_ticks],
+        )
+        ax.set(ylabel="$y$", xlabel="$v_y$", title=f"Score function")
+        plt.show()
