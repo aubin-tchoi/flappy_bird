@@ -26,7 +26,7 @@ if __name__ == "__main__":
         rtol=1e-3,
     ), "Parameters inference failed"
 
-    if args.is_final_run:
+    if not args.run_cross_val:
         launch_multiple_experiments(
             env,
             args.n_experiments,

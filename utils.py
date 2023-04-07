@@ -22,9 +22,9 @@ def parse_args() -> argparse.Namespace:
         help="Displays progress bars within each episode",
     )
     parser.add_argument(
-        "--is_final_run",
+        "--run_cross_val",
         action="store_true",
-        help="Runs the experiments with a single value of (alpha, beta) instead of performing a cross-validation.",
+        help="Runs a cross validation on the parameters (alpha, beta) instead of performing a regular run.",
     )
     parser.add_argument(
         "--n_experiments",
