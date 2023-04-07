@@ -98,11 +98,13 @@ def launch_multiple_experiments(
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 6))
     ax1.hist(
         rewards,
-        bins=(int(rewards.max(initial=0)) - int(rewards.min(initial=max_steps)) or 1),
+        bins=(int(rewards.max(initial=0)) - int(rewards.min(initial=max_steps)) // 10 or 1),
+        color="cornflowerblue",
     )
     ax2.hist(
         n_steps,
-        bins=(int(n_steps.max(initial=0)) - int(n_steps.min(initial=max_steps)) or 1),
+        bins=(int(n_steps.max(initial=0)) - int(n_steps.min(initial=max_steps)) // 10 or 1),
+        color="cornflowerblue",
     )
     ax1.set(xlabel="rewards", ylabel="number of occurrences")
     ax2.set(xlabel="n_steps", ylabel="number of occurrences")
