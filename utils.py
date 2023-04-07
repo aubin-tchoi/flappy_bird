@@ -39,6 +39,12 @@ def parse_args() -> argparse.Namespace:
         help="Maximum number of steps in an episode",
     )
     parser.add_argument(
+        "--min_tree_depth",
+        type=int,
+        default=20,
+        help="Minimal tree depth. Strongly affects the score function computed using the 'exact' heuristic.",
+    )
+    parser.add_argument(
         "--alpha",
         type=float,
         default=0.0,
@@ -62,7 +68,8 @@ def parse_args() -> argparse.Namespace:
 
 
 def display_results(
-    values: np.ndarray,
+    rewards: np.ndarray,
+    n_steps: np.ndarray,
     alpha_list: List[float],
     beta_list: List[float],
     max_steps: int,
@@ -72,50 +79,69 @@ def display_results(
     Operates in three steps: prints the results obtained for each set of parameters, displays them in a matrix and
     gives the best parameters.
     """
-    mean_results = values.mean(axis=-1)
-    success_rates = (values == max_steps).mean(axis=-1)
+    mean_rewards = rewards.mean(axis=-1)
+    mean_n_steps = n_steps.mean(axis=-1)
+    success_rates = (n_steps == max_steps).mean(axis=-1)
     for alpha_idx, alpha in enumerate(alpha_list):
         for beta_idx, beta in enumerate(beta_list):
             print(
                 f"Parameters - alpha: {alpha}, beta: {beta}: success rate: {success_rates[alpha_idx, beta_idx]:.2f}\n"
-                f"Number of steps: {mean_results[alpha_idx, beta_idx]:.2f} "
-                f"+/- {1.96 * values[alpha_idx, beta_idx, :].std():.2f} "
-                f"[{values[alpha_idx, beta_idx, :].min():.2f}, {values[alpha_idx, beta_idx, :].max():.2f}]\n"
+                f"Rewards: {mean_rewards[alpha_idx, beta_idx]:.2f} "
+                f"+/- {1.96 * rewards[alpha_idx, beta_idx, :].std():.2f} "
+                f"[{rewards[alpha_idx, beta_idx, :].min():.2f}, {rewards[alpha_idx, beta_idx, :].max():.2f}]\n"
+                f"Number of steps: {mean_n_steps[alpha_idx, beta_idx]:.2f} "
+                f"+/- {1.96 * n_steps[alpha_idx, beta_idx, :].std():.2f} "
+                f"[{n_steps[alpha_idx, beta_idx, :].min():.2f}, {n_steps[alpha_idx, beta_idx, :].max():.2f}]\n"
             )
 
     # matrix plot
     # noinspection PyArgumentEqualDefault
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(8 * len(beta_list), 4 * len(alpha_list)))
+    fig, axes = plt.subplots(1, 3, figsize=(8 * len(beta_list), 2 * len(alpha_list)))
     # noinspection PyUnresolvedReferences
-    ax1.matshow(mean_results, cmap=plt.cm.Blues)
+    axes[0].matshow(mean_rewards, cmap=plt.cm.Oranges)
     # noinspection PyUnresolvedReferences
-    ax2.matshow(success_rates, cmap=plt.cm.Blues)
-    for row in range(mean_results.shape[1]):
-        for col in range(mean_results.shape[0]):
+    axes[1].matshow(mean_n_steps, cmap=plt.cm.Oranges)
+    # noinspection PyUnresolvedReferences
+    axes[2].matshow(success_rates, cmap=plt.cm.Oranges)
+    for row in range(mean_n_steps.shape[1]):
+        for col in range(mean_n_steps.shape[0]):
             # not the same convention between numpy and matshow (column-major)
-            ax1.text(row, col, f"{mean_results[col, row]:.2f}", va="center", ha="center")
-            ax2.text(row, col, f"{success_rates[col, row] * 100:.2f}%", va="center", ha="center")
-    ax1.set(
-        ylabel=r"$\alpha$",
-        xlabel=r"$\beta$",
-        title=f"Mean number of steps over {values.shape[-1]} experiments with at most {max_steps} steps.",
+            axes[0].text(
+                row, col, f"{mean_rewards[col, row]:.2f}", va="center", ha="center"
+            )
+            axes[1].text(
+                row, col, f"{mean_n_steps[col, row]:.2f}", va="center", ha="center"
+            )
+            axes[2].text(
+                row,
+                col,
+                f"{success_rates[col, row] * 100:.2f}%",
+                va="center",
+                ha="center",
+            )
+    for ax in axes:
+        ax.set(ylabel=r"$\alpha$", xlabel=r"$\beta$")
+        ax.set_xticks(range(len(beta_list)), beta_list)
+        ax.set_yticks(range(len(alpha_list)), alpha_list)
+    plt.suptitle(
+        f"{n_steps.shape[-1]} experiments with at most {max_steps} steps.",
     )
-    ax1.set_xticks(range(len(beta_list)), beta_list)
-    ax1.set_yticks(range(len(alpha_list)), alpha_list)
-    ax2.set(
-        ylabel=r"$\alpha$",
-        xlabel=r"$\beta$",
-        title=f"Mean success rates over {values.shape[-1]} experiments with at most {max_steps} steps.",
+    axes[0].set(
+        title=f"Mean reward",
     )
-    ax2.set_xticks(range(len(beta_list)), beta_list)
-    ax2.set_yticks(range(len(alpha_list)), alpha_list)
+    axes[1].set(
+        title=f"Mean number of steps",
+    )
+    axes[2].set(
+        title=f"Mean success rates",
+    )
     plt.show()
 
     # best parameters
-    best_alpha, best_beta = np.unravel_index(mean_results.argmax(), values.shape[:-1])
+    best_alpha, best_beta = np.unravel_index(mean_rewards.argmax(), n_steps.shape[:-1])
     print(
-        f"Best parameters - alpha: {alpha_list[best_alpha]}, beta: {beta_list[best_beta]}\n"
-        f"Number of steps: {values[best_alpha, best_beta, :].mean():.2f} "
-        f"+/- {1.96 * values[best_alpha, best_beta, :].std():.2f} "
-        f"[{values[best_alpha, best_beta, :].min():.2f}, {values[best_alpha, best_beta, :].max():.2f}]\n"
+        f"Best parameters (in terms of rewards) - alpha: {alpha_list[best_alpha]}, beta: {beta_list[best_beta]}\n"
+        f"Number of steps: {n_steps[best_alpha, best_beta, :].mean():.2f} "
+        f"+/- {1.96 * n_steps[best_alpha, best_beta, :].std():.2f} "
+        f"[{n_steps[best_alpha, best_beta, :].min():.2f}, {n_steps[best_alpha, best_beta, :].max():.2f}]\n"
     )

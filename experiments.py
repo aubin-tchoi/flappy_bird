@@ -1,6 +1,6 @@
 from multiprocessing import Pool, Manager
 from multiprocessing.managers import SyncManager
-from typing import List, Literal
+from typing import List, Literal, Tuple
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -16,6 +16,7 @@ def launch_multiple_experiments(
     n_experiments: int,
     alpha: float = 0.0,
     beta: float = 0.3,
+    min_tree_depth: int = 20,
     heuristic: Literal["convex", "geometric", "exact"] = "convex",
     max_steps: int = 1000,
     gravity: float = 0.05,
@@ -35,6 +36,7 @@ def launch_multiple_experiments(
         beta=beta,
         max_bars=-1,
         heuristic=heuristic,
+        min_tree_depth=min_tree_depth,
     )
     environment.reset()
     observation = environment.step(0)[0]
@@ -114,10 +116,11 @@ def parallel_experiment(
     max_steps: int,
     p_id: int,
     lock_manager: SyncManager,
-) -> np.ndarray:
+) -> Tuple[np.ndarray, np.ndarray]:
     """
     Launches an experiment. Allows for easy multiprocessing as it is a pure function.
     """
+    rewards = np.zeros(n_experiments)
     n_steps = np.zeros(n_experiments)
 
     with lock_manager:
@@ -150,13 +153,14 @@ def parallel_experiment(
             inner_progress_bar.reset()
             global_progress_bar.update()
 
+        rewards[exp] = total_reward
         n_steps[exp] = step
 
     with lock_manager:
         global_progress_bar.close()
         inner_progress_bar.close()
 
-    return n_steps
+    return rewards, n_steps
 
 
 def launch_cross_validation(
@@ -165,12 +169,13 @@ def launch_cross_validation(
     environment: FlappyBird,
     n_experiments: int,
     max_steps: int,
+    min_tree_depth: int = 20,
     heuristic: Literal["convex", "geometric", "exact"] = "convex",
     gravity: float = 0.05,
     force_push: float = 0.1,
     vx: float = 0.05,
     n_processes: int = 8,
-) -> np.ndarray:
+) -> Tuple[np.ndarray, np.ndarray]:
     """
     Launches a series of experiment to cross-validate on the values of alpha and beta.
     The experiments are multiprocessed with one process for each value of (alpha, beta), which is fit for the current
@@ -181,7 +186,8 @@ def launch_cross_validation(
     """
     lock, process_id = Manager().Lock(), 0
 
-    all_results = np.zeros((len(alphas), len(betas), n_experiments))
+    all_rewards = np.zeros((len(alphas), len(betas), n_experiments))
+    all_n_steps = np.zeros((len(alphas), len(betas), n_experiments))
     async_results = []
 
     with Pool(processes=n_processes) as pool:
@@ -202,6 +208,7 @@ def launch_cross_validation(
                                 alpha=alpha_val,
                                 beta=beta_val,
                                 heuristic=heuristic,
+                                min_tree_depth=min_tree_depth,
                             ),
                             n_experiments,
                             max_steps,
@@ -213,15 +220,18 @@ def launch_cross_validation(
                     process_id += 1
 
         for alpha_i, beta_i, res in async_results:
-            all_results[alpha_i, beta_i, :] = res.get(timeout=72000)
+            rewards, n_steps = res.get(timeout=86400)
+            all_rewards[alpha_i, beta_i, :] = rewards
+            all_n_steps[alpha_i, beta_i, :] = n_steps
 
         # copying the values for the experiments we skipped
         for alpha_i, alpha_val in enumerate(alphas):
             for beta_i, beta_val in enumerate(betas):
                 if alpha_val == 0 and beta_i > 0:
-                    all_results[alpha_i, beta_i, :] = all_results[alpha_i, 0, :]
+                    all_rewards[alpha_i, beta_i, :] = all_rewards[alpha_i, 0, :]
+                    all_n_steps[alpha_i, beta_i, :] = all_n_steps[alpha_i, 0, :]
 
-    return all_results
+    return all_rewards, all_n_steps
 
 
 def launch_concurrent_runs(
