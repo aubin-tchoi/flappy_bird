@@ -100,11 +100,13 @@ def launch_multiple_experiments(
         rewards,
         bins=(int(rewards.max(initial=0)) - int(rewards.min(initial=max_steps)) // 10 or 1),
         color="cornflowerblue",
+        edgecolor="cornflowerblue",
     )
     ax2.hist(
         n_steps,
         bins=(int(n_steps.max(initial=0)) - int(n_steps.min(initial=max_steps)) // 10 or 1),
         color="cornflowerblue",
+        edgecolor="cornflowerblue",
     )
     ax1.set(xlabel="rewards", ylabel="number of occurrences")
     ax2.set(xlabel="n_steps", ylabel="number of occurrences")
