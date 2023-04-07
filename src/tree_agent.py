@@ -122,7 +122,9 @@ class TreeBasedAgent:
             / 2**self.min_tree_depth
         )
         self.bars = bars
-        return score
+
+        # adding a constant value to add a contribution to the sheer number of leaves
+        return score + self.alpha
 
     def compute_leaf_score(self, bird_y: float, bird_vy: float):
         """
