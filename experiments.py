@@ -42,14 +42,14 @@ def launch_multiple_experiments(
     rewards = np.zeros(n_experiments)
     n_steps = np.zeros(n_experiments)
 
-    for exp in trange(n_experiments, desc="Number of finished runs", position=0):
+    for exp in trange(n_experiments, desc="Number of finished runs", position=1):
         step, total_reward = 0, 0
         for step in trange(
             1,
             max_steps + 1,
             desc="Steps within an episode",
             disable=disable_progress_bar,
-            position=1,
+            position=2,
             leave=False,
         ):
             action = agent.sample_action(observation)
@@ -72,6 +72,11 @@ def launch_multiple_experiments(
                 break
         rewards[exp] = total_reward
         n_steps[exp] = step
+        print(
+            f"\rCurrent mean reward / number of steps: {rewards[:exp + 1].mean():.2f} / {n_steps[:exp + 1].mean():.2f}",
+            end="\r",
+            flush=True,
+        )
 
     print(
         f"\n\nReward over {n_experiments} experiments: {rewards.mean():.2f} +/- {1.96 * rewards.std():.2f} "
